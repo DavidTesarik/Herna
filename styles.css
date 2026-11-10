@@ -303,6 +303,12 @@ select { min-height: 44px; border-radius: 10px; border: 1px solid var(--line); b
 .dot { color: #fde047; font-size: 1rem; }
 
 /* město */
+.scene { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; }
+.scene .tw { animation: tw 2.4s ease-in-out infinite; }
+.scene .orbit { animation: spin 14s linear infinite; }
+.scene .spin { animation: spin 90s linear infinite; }
+@keyframes tw { 50% { opacity: .25; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 .skyline { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-end; gap: 4px; min-height: 56px; line-height: 1; }
 .skyline .off { opacity: .45; font-size: 1rem !important; }
 .row.locked .ricon { filter: grayscale(1); opacity: .6; }

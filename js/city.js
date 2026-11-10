@@ -16,6 +16,20 @@
     { id: 'dama', name: 'Zámek', icon: '🏰', cost: 30000, rate: 75 }
   ];
   const CAP_H = [8, 12, 16, 24], BOOST_MS = 600000;
+  H.STAGES = [
+    { name: 'Osada', need: 0, text: 'Pár stanů u ohně. Odtud to všechno začíná.' },
+    { name: 'Vesnice', need: 3, text: 'První domky a pěšina mezi nimi.' },
+    { name: 'Městečko', need: 8, text: 'Přibyl kostel, silnice a patrové domy.' },
+    { name: 'Město', need: 16, text: 'Paneláky, auta a rušné ulice.' },
+    { name: 'Velkoměsto', need: 28, text: 'Věžáky rostou do nebe.' },
+    { name: 'Metropole', need: 45, text: 'Mrakodrapy, které svítí celou noc.' },
+    { name: 'Země', need: 70, text: 'Tvoje města pokrývají celou zemi.' },
+    { name: 'Planeta', need: 100, text: 'Světla tvé civilizace jsou vidět z vesmíru.' },
+    { name: 'Sluneční soustava', need: 140, text: 'Osídluješ další planety.' },
+    { name: 'Galaxie', need: 190, text: 'Tvoje kolonie svítí mezi hvězdami.' },
+    { name: 'Vesmír', need: 250, text: 'Síť galaxií, které ti patří.' },
+    { name: 'Mnohovesmír', need: 330, text: 'Dál už to nejde. Nebo ano?' }
+  ];
   const by = id => H.CITY.find(b => b.id === id);
   const C = H.city = {
     BOOST_MS,
@@ -24,7 +38,13 @@
     played: id => !!(H.S.games[id] && H.S.games[id].played),
     maxLevel: id => 10 * H.gameLevel(H.S.games[id] ? H.S.games[id].xp : 0).level,
     cost: id => Math.round(by(id).cost * Math.pow(1.15, C.level(id))),
-    mult: () => 1 + 0.05 * Object.keys(H.S.badges).length + 0.02 * (H.level(H.S.xp).level - 1),
+    sum: () => H.CITY.reduce((a, b) => a + C.level(b.id), 0),
+    stage() { const n = C.sum(); let i = 0; while (i + 1 < H.STAGES.length && n >= H.STAGES[i + 1].need) i++; return i; },
+    stageInfo() {
+      const i = C.stage(), n = C.sum(), cur = H.STAGES[i], next = H.STAGES[i + 1];
+      return { i, name: cur.name, text: cur.text, next, into: n - cur.need, need: next ? next.need - cur.need : 0, t: next ? (n - cur.need) / (next.need - cur.need) : 1 };
+    },
+    mult: () => 1 + 0.05 * Object.keys(H.S.badges).length + 0.02 * (H.level(H.S.xp).level - 1) + 0.1 * C.stage(),
     gameMult: id => 1 + 0.1 * (H.gameLevel(H.S.games[id] ? H.S.games[id].xp : 0).level - 1),
     rate: id => by(id).rate * C.level(id) * C.gameMult(id) * C.mult(),
     boosted: (id, now) => (H.S.city.boost[id] || 0) > (now || Date.now()),
@@ -49,8 +69,11 @@
       const cost = C.cost(id);
       if (!C.played(id) || C.level(id) >= C.maxLevel(id) || H.S.coins < cost) return false;
       C.accrue(Date.now());
-      H.S.coins -= cost; H.S.city.b[id] = C.level(id) + 1; H.save();
-      return true;
+      H.S.coins -= cost; H.S.city.b[id] = C.level(id) + 1;
+      const up = C.stage() > (H.S.city.stage || 0);
+      if (up) H.S.city.stage = C.stage();
+      H.save();
+      return up ? 'stage' : true;
     }
   };
   const perMin = r => (r < 10 ? r.toFixed(1).replace('.', ',') : H.fmt(r)) + ' 🪙/min';
@@ -66,16 +89,17 @@
   };
   H.renderCity = main => {
     dyn = [];
-    const total = C.total(), built = H.CITY.filter(b => C.level(b.id)).length;
-    main.append(...[el('h1', { text: 'Město' }),
+    const total = C.total(), built = H.CITY.filter(b => C.level(b.id)).length, si = C.stageInfo();
+    main.append(...[el('h1', { text: si.name }),
       el('div', { class: 'card hero' },
-        el('div', { class: 'skyline', 'aria-hidden': 'true' }, H.CITY.map(b => {
-          const l = C.level(b.id);
-          return el('span', { class: l ? '' : 'off', style: `font-size:${(1.3 + Math.min(l, 60) / 30).toFixed(2)}rem`, text: l ? b.icon : '▫️' });
-        })),
+        el('div', { html: H.scene(si.i, si.t, `Obrázek: ${si.name}, stupeň ${si.i + 1} z ${H.STAGES.length}`) }),
+        el('p', { text: si.text }),
+        si.next ? el('div', { class: 'glvl' }, el('span', { text: `Další stupeň: ${si.next.name} · ${si.into}/${si.need} úrovní budov` }),
+          el('div', { class: 'xpbar', role: 'img', 'aria-label': `Postup k dalšímu stupni: ${si.into} z ${si.need}` }, el('span', { style: `width:${Math.round(si.t * 100)}%` })))
+          : el('p', { class: 'muted', text: 'Dosáhl jsi nejvyššího stupně.' }),
         el('div', { class: 'big', text: perMin(total) }),
-        el('p', { class: 'muted', text: `Násobič ×${C.mult().toFixed(2).replace('.', ',')} (odznaky a level) · mimo appku vydělává nejdéle ${C.capHours()} h` })),
-      built ? null : el('p', { class: 'empty', text: 'Město je zatím prázdné. Každá hra, kterou si aspoň jednou zahraješ, ti tu odemkne jednu budovu. Budovy pak samy vydělávají mince.' }),
+        el('p', { class: 'muted', text: `Násobič ×${C.mult().toFixed(2).replace('.', ',')} (stupeň, odznaky, level) · mimo appku vydělává nejdéle ${C.capHours()} h` })),
+      built ? null : el('p', { class: 'empty', text: 'Osada je zatím prázdná. Každá hra, kterou si aspoň jednou zahraješ, ti tu odemkne jednu budovu. Budovy pak samy vydělávají mince.' }),
       el('h2', { text: 'Budovy' }),
       el('div', { class: 'list' }, H.CITY.map(b => {
         const g = H.byId[b.id], l = C.level(b.id), max = C.maxLevel(b.id), cost = C.cost(b.id), open = C.played(b.id);
@@ -85,9 +109,14 @@
         else if (l >= max) note = `Strop úrovně ${max}. Zvyš úroveň hry ${g.name}.`;
         else btn = el('button', { class: 'btn small primary two', 'data-b': b.id, 'aria-label': `${l ? 'Vylepšit' : 'Postavit'} ${b.name} za ${H.fmt(cost)} mincí`,
           onclick: () => {
-            if (!C.buy(b.id)) { H.sfx('bad'); return H.toast(`Chybí ti ${H.fmt(cost - H.S.coins)} mincí.`); }
+            const got = C.buy(b.id);
+            if (!got) { H.sfx('bad'); return H.toast(`Chybí ti ${H.fmt(cost - H.S.coins)} mincí.`); }
             H.sfx('coin'); H.buzz(12); H.rerender();
             const again = document.querySelector(`[data-b="${b.id}"]`); if (again) again.focus({ preventScroll: true });
+            if (got === 'stage') {
+              const si = C.stageInfo(); H.sfx('level'); H.confetti(); H.buzz([30, 40, 80]);
+              H.modal({ title: '🎉 Nový stupeň: ' + si.name, body: [el('div', { html: H.scene(si.i, 0, 'Obrázek: ' + si.name) }), el('p', { text: si.text }), el('p', { class: 'muted', text: 'Každý stupeň přidává 10 % k výdělku všech budov.' })], actions: [{ label: 'Paráda', primary: true }] });
+            }
           } }, el('span', { text: l ? 'Vylepšit' : 'Postavit' }), el('span', { text: '🪙 ' + H.fmt(cost) }));
         dyn.push({ id: b.id, btn, cost, boost });
         return el('div', { class: 'row' + (open ? '' : ' locked') },
@@ -103,6 +132,7 @@
         el('p', { text: 'Budova vydělává sama, i když appku zavřeš. Hraním jí pomáháš třemi způsoby:' }),
         el('p', { text: '⚡ Výhra ve hře zapne její budově na 10 minut dvojnásobný výdělek.' }),
         el('p', { text: '📈 Vyšší úroveň hry zvedá strop úrovně budovy a přidává 10 % k výdělku.' }),
+        el('p', { text: '🌍 Součet úrovní všech budov posouvá sídlo na další stupeň: z osady přes město a planetu až ke galaxiím. Každý stupeň přidá 10 % k výdělku.' }),
         el('p', { text: '🏅 Každý odznak přidá 5 % k výdělku celého města, každý level hráče 2 %.' }),
         el('p', { class: 'muted', text: 'Za každou dohranou hru navíc dostaneš bonus podle toho, kolik město právě vydělává.' }))].filter(Boolean));
     H.cityTick();

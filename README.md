@@ -16,7 +16,7 @@ Sbírka rychlých her do kapsy. Běží celá v telefonu, i bez internetu, bez �
 - **Lodě** proti počítači – varianta Velké moře
 - **Dáma** proti počítači – varianta Dobrovolné braní
 
-**Město:** každá hra odemyká jednu budovu, která sama vydělává mince (i když je appka zavřená, nejdéle 8 hodin; strop jde vylepšit). Výhra zapne budově na 10 minut dvojnásobný výdělek, úroveň hry zvedá strop úrovně budovy a odznaky přidávají trvalý násobič.
+**Město:** každá hra odemyká jednu budovu, která sama vydělává mince (i když je appka zavřená, nejdéle 8 hodin; strop jde vylepšit). Výhra zapne budově na 10 minut dvojnásobný výdělek, úroveň hry zvedá strop úrovně budovy a odznaky přidávají trvalý násobič. Sídlo se podle součtu úrovní budov viditelně rozrůstá ve dvanácti stupních: Osada, Vesnice, Městečko, Město, Velkoměsto, Metropole, Země, Planeta, Sluneční soustava, Galaxie, Vesmír a Mnohovesmír. Každý stupeň má vlastní obrázek a přidá 10 % k výdělku.
 
 Čtyři obtížnosti (Lehká, Střední, Těžká, Nemožná), XP a level hráče, vlastní úroveň každé hry (odemyká variantu), mince, obchod se skiny a vylepšeními, denní výzvy, odznaky a statistiky. Rozehrané piškvorky, čtyři v řadě, miny, 2048, sudoku, slovo, lodě a dáma se samy ukládají a příště pokračuješ.
 

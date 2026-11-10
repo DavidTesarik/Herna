@@ -2,7 +2,7 @@
 /* Herna — obrazovky, průběh her, odměny */
 (function () {
   const { el } = H;
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   const $ = s => document.querySelector(s);
   let S, view = 'home', cur = null; // cur = { g, inst, diff, variant, mode, started, ended }
 
@@ -308,7 +308,8 @@
       all: H.games.every(g => S.games[g.id] && S.games[g.id].played), p50: played >= 50, p250: played >= 250,
       lvl10: H.level(S.xp).level >= 10, rich: S.coins >= 2000, collector: owned >= 8, quest10: S.questsDone >= 10,
       city1: H.CITY.some(b => H.city.level(b.id)), cityAll: H.CITY.every(b => H.city.level(b.id)),
-      city100: H.CITY.reduce((a, b) => a + H.city.level(b.id), 0) >= 100, earn100k: S.city.earned >= 100000
+      city100: H.CITY.reduce((a, b) => a + H.city.level(b.id), 0) >= 100, earn100k: S.city.earned >= 100000,
+      metro: H.city.stage() >= 5, planet: H.city.stage() >= 7, galaxy: H.city.stage() >= 9
     };
     for (const b of H.BADGES) if (!S.badges[b.id] && (tests[b.id] || (out.flags && out.flags[b.id]))) { S.badges[b.id] = H.today(); out.push(`${b.icon} Nový odznak: ${b.name}`); }
   };
@@ -387,6 +388,7 @@
     const had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) H.toast('Je připravená nová verze.', { label: 'Obnovit', fn: () => location.reload() }); });
   }
+  S.city.stage = Math.max(S.city.stage || 0, H.city.stage());
   const away = S.city.last ? Date.now() - S.city.last : 0, gained = H.city.accrue(Date.now());
   H.save();
   render();

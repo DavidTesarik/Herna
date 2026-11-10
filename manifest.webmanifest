@@ -1,7 +1,7 @@
 {
   "name": "Herna – rychlé hry do kapsy",
   "short_name": "Herna",
-  "description": "Piškvorky, čtyři v řadě, závod, miny, pexeso, 2048 a had. Offline, bez účtu a bez reklam.",
+  "description": "Jedenáct rychlých her a město, které ti vydělává mince. Offline, bez účtu a bez reklam.",
   "lang": "cs",
   "start_url": "./",
   "scope": "./",

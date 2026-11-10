@@ -87,7 +87,10 @@
     { id: 'city1', icon: '🏗️', name: 'Základní kámen', desc: 'Postav první budovu ve městě.' },
     { id: 'cityAll', icon: '🏙️', name: 'Starosta', desc: 'Postav všechny budovy.' },
     { id: 'city100', icon: '🌆', name: 'Velkoměsto', desc: 'Měj budovy s úrovněmi dohromady 100.' },
-    { id: 'earn100k', icon: '🏧', name: 'Zlatý důl', desc: 'Město ti vydělalo celkem 100 000 mincí.' }
+    { id: 'earn100k', icon: '🏧', name: 'Zlatý důl', desc: 'Město ti vydělalo celkem 100 000 mincí.' },
+    { id: 'metro', icon: '🌃', name: 'Metropole', desc: 'Rozšiř sídlo na metropoli.' },
+    { id: 'planet', icon: '🌍', name: 'Vládce planety', desc: 'Rozšiř sídlo na celou planetu.' },
+    { id: 'galaxy', icon: '🌌', name: 'Galaktická říše', desc: 'Rozšiř sídlo na galaxii.' }
   ];
 
   /* ---------- Stav ---------- */
@@ -96,7 +99,7 @@
     owned: { theme: ['neon'], pieces: ['klasik'], car: ['cervene'], cards: ['zvirata'] },
     active: { theme: 'neon', pieces: 'klasik', car: 'cervene', cards: 'zvirata' },
     upg: { undo: 0, shield: 0, magnet: 0, detector: 0, cap: 0 },
-    city: { b: {}, boost: {}, last: 0, frac: 0, earned: 0 },
+    city: { b: {}, boost: {}, last: 0, frac: 0, earned: 0, stage: 0 },
     games: {}, prefs: {}, saves: {}, badges: {},
     daily: { date: '', quests: [] }, questsDone: 0, seenHelp: {},
     settings: { sound: true, vib: true, motion: 'auto', theme: 'system' }
