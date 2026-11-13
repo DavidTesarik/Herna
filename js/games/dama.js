@@ -104,7 +104,7 @@
   };
 
   H.register({
-    id: 'dama', name: 'Dáma', icon: '♛', grad: ['#7c2d12', '#78350f'], vsAI: true, saveable: true,
+    id: 'dama', name: 'Dáma', icon: '♛', grad: ['#7c2d12', '#78350f'], vsAI: true, saveable: true, pvp: true,
     desc: 'Přeskákej kameny počítače',
     variant: { name: 'Dobrovolné braní', desc: 'Brát se nemusí. Volnější hra s více možnostmi.', level: 2 },
     help: 'Ťukni na svůj kámen a pak na označené pole. Kámen chodí šikmo vpřed o jedno pole a bere přeskokem vpřed. Braní je povinné. Na poslední řadě se kámen mění v dámu, která chodí i bere na dálku všemi směry. Kdo nemá tah nebo kameny, prohrál.',
@@ -112,6 +112,7 @@
       const sk = ctx.skin('pieces'), must = !ctx.variant;
       let st = ctx.saved || { b: initial(), turn: ctx.aiFirst ? 2 : 1, hist: [], undos: ctx.undos, quiet: 0, last: [] };
       let over = false, sel = -1, moves = [], timer = 0;
+      const P = !!ctx.pvp, sideNow = () => st.turn === 1 ? 1 : -1;
       const status = el('p', { class: 'g-status', role: 'status' });
       const board = el('div', { class: 'board dama', role: 'grid', 'aria-label': 'Šachovnice' });
       const cells = st.b.map((_, i) => el('button', { class: 'cell ' + (((i >> 3) + (i & 7)) % 2 ? 'dark' : 'light'), onclick: () => tap(i) }));
@@ -123,17 +124,21 @@
         const from = new Set(moves.map(m => m.from)), to = new Set(moves.filter(m => m.from === sel).map(m => m.to));
         cells.forEach((c, i) => {
           const p = st.b[i], dark = ((i >> 3) + (i & 7)) % 2;
-          c.className = 'cell ' + (dark ? 'dark' : 'light') + (i === sel ? ' sel' : '') + (to.has(i) ? ' target' : '') + (st.turn === 1 && !over && from.has(i) && sel < 0 ? ' can' : '') + (st.last.includes(i) ? ' last' : '');
+          c.className = 'cell ' + (dark ? 'dark' : 'light') + (i === sel ? ' sel' : '') + (to.has(i) ? ' target' : '') + ((P || st.turn === 1) && !over && from.has(i) && sel < 0 ? ' can' : '') + (st.last.includes(i) ? ' last' : '');
           c.textContent = '';
           if (p) c.append(el('span', { class: 'disc' + (p < 0 ? ' ai' : ''), style: `background:${p > 0 ? sk.ca : sk.cb}`, 'aria-hidden': 'true', text: Math.abs(p) === 2 ? '♛' : '' }));
           else if (to.has(i)) c.append(el('span', { class: 'dot', 'aria-hidden': 'true', text: '●' }));
-          c.disabled = over || st.turn !== 1 || !dark;
-          c.setAttribute('aria-label', `${String.fromCharCode(65 + (i & 7))}${8 - (i >> 3)}: ` + (p ? (p > 0 ? 'tvůj ' : 'počítačův ') + (Math.abs(p) === 2 ? 'dáma' : 'kámen') : 'prázdné') + (to.has(i) ? ', sem můžeš táhnout' : ''));
+          c.disabled = over || (!P && st.turn !== 1) || !dark;
+          c.setAttribute('aria-label', `${String.fromCharCode(65 + (i & 7))}${8 - (i >> 3)}: ` + (p ? (P ? 'hráč ' + (p > 0 ? 1 : 2) + ', ' : p > 0 ? 'tvůj ' : 'počítačův ') + (Math.abs(p) === 2 ? 'dáma' : 'kámen') : 'prázdné') + (to.has(i) ? ', sem můžeš táhnout' : ''));
         });
         undoBtn.textContent = `↩ Vrátit tah (${st.undos})`;
-        undoBtn.disabled = over || !st.undos || st.turn !== 1 || st.hist.length < 2;
+        undoBtn.disabled = over || !st.undos || (P ? !st.hist.length : st.turn !== 1 || st.hist.length < 2);
       };
-      const finish = res => { over = true; sel = -1; moves = []; paint(); say(res === 'win' ? 'Vyhrál jsi!' : res === 'loss' ? 'Počítač vyhrál.' : 'Remíza.'); ctx.end({ result: res }); };
+      const finish = res => {
+        over = true; sel = -1; moves = []; paint();
+        if (P) { const w = res === 'win' ? 1 : res === 'loss' ? 2 : 0; say(w ? `Vyhrál hráč ${w}!` : 'Remíza.'); return ctx.end({ result: 'pvp', winner: w }); }
+        say(res === 'win' ? 'Vyhrál jsi!' : res === 'loss' ? 'Počítač vyhrál.' : 'Remíza.'); ctx.end({ result: res });
+      };
       const play = (m, side) => {
         st.hist.push(JSON.stringify({ b: st.b, quiet: st.quiet }));
         if (st.hist.length > 12) st.hist.shift();
@@ -145,22 +150,25 @@
         const next = gen(st.b, side === 1 ? -1 : 1, must);
         if (!next.length) return finish(side === 1 ? 'win' : 'loss');
         ctx.save(st);
-        if (st.turn === 2) { moves = []; paint(); aiTurn(); } else { moves = next; paint(); say(must && next[0].caps.length ? 'Musíš brát.' : 'Jsi na tahu.'); }
+        if (st.turn === 2 && !P) { moves = []; paint(); aiTurn(); } else { moves = next; paint(); say((P ? `Hráč ${st.turn} (${st.turn === 1 ? 'dole' : 'nahoře'}): ` : '') + (must && next[0].caps.length ? 'Musíš brát.' : P ? 'jsi na tahu.' : 'Jsi na tahu.')); }
       };
       const tap = i => {
-        if (over || st.turn !== 1) return;
-        if (st.b[i] > 0) { sel = moves.some(m => m.from === i) ? i : -1; if (sel < 0) { H.sfx('bad'); say(must && moves[0] && moves[0].caps.length ? 'Tímhle kamenem teď nemůžeš. Musíš brát jiným.' : 'Tenhle kámen nemá kam táhnout.'); } return paint(); }
+        if (over || (!P && st.turn !== 1)) return;
+        const sd = P ? sideNow() : 1;
+        if (st.b[i] * sd > 0) { sel = moves.some(m => m.from === i) ? i : -1; if (sel < 0) { H.sfx('bad'); say(must && moves[0] && moves[0].caps.length ? 'Tímhle kamenem teď nemůžeš. Musíš brát jiným.' : 'Tenhle kámen nemá kam táhnout.'); } return paint(); }
         const opts = moves.filter(m => m.from === sel && m.to === i);
-        if (opts.length) play(opts.sort((a, b) => b.caps.length - a.caps.length)[0], 1);
+        if (opts.length) play(opts.sort((a, b) => b.caps.length - a.caps.length)[0], sd);
       };
       const aiTurn = () => { say('Počítač přemýšlí…'); timer = setTimeout(() => { if (!over) play(ai(st.b, ctx.diff, must), -1); }, 450); };
       function undo() {
-        if (over || !st.undos || st.turn !== 1 || st.hist.length < 2) return;
-        st.hist.pop(); const s = JSON.parse(st.hist.pop());
-        st.b = s.b; st.quiet = s.quiet; st.last = []; st.undos--; sel = -1; moves = gen(st.b, 1, must);
+        if (over || !st.undos || (P ? !st.hist.length : st.turn !== 1 || st.hist.length < 2)) return;
+        if (!P) st.hist.pop(); else st.turn = 3 - st.turn;
+        const s = JSON.parse(st.hist.pop());
+        st.b = s.b; st.quiet = s.quiet; st.last = []; st.undos--; sel = -1; moves = gen(st.b, P ? sideNow() : 1, must);
         ctx.save(st); paint(); say('Tah vrácen. Jsi na tahu.');
       }
-      if (st.turn === 2) { paint(); aiTurn(); }
+      if (st.turn === 2 && !P) { paint(); aiTurn(); }
+      else if (P) { moves = gen(st.b, sideNow(), must); paint(); say(`Hráč 1 má kameny dole, hráč 2 nahoře. Na tahu je hráč ${st.turn}.`); }
       else { moves = gen(st.b, 1, must); paint(); say(ctx.saved ? 'Pokračuješ v rozehrané hře. Jsi na tahu.' : 'Začínáš. Tvoje kameny jsou dole.'); }
       return { destroy() { clearTimeout(timer); over = true; } };
     }

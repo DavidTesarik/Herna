@@ -5,18 +5,19 @@
   const LW = 300, LH = 470, LANES = [70, 150, 230], PY = 380, VMAX = 520, LEN = VMAX * 36;
   const RIVAL = [0.74, 0.83, 0.9, 0.955], GAP = [340, 295, 255, 225], DOUBLE = [0, 0.15, 0.3, 0.45];
   H.register({
-    id: 'zavod', name: 'Závod', icon: '🏎️', grad: ['#1d4ed8', '#0369a1'], vsAI: true, bestFmt: 'sec',
+    id: 'zavod', name: 'Závod', icon: '🏎️', grad: ['#1d4ed8', '#0369a1'], vsAI: true, bestFmt: 'sec', realtime: true,
     desc: 'Předjeď soupeře do cíle',
     variant: { name: 'Noční jízda', desc: 'Vidíš jen kousek před sebe. Mince se počítají dvakrát.', level: 2 },
-    help: 'Ťukni vlevo nebo vpravo (nebo přejeď prstem) a auto změní pruh. Vyhni se překážkám, náraz tě hodně zpomalí. Sbírej mince a buď v cíli dřív než soupeř.',
+    help: 'Šipkami dole (nebo ťuknutím na levou či pravou půlku dráhy) měníš pruh. Vyhni se překážkám, náraz tě hodně zpomalí. Sbírej mince a buď v cíli dřív než soupeř.',
     start(root, ctx) {
       const car = ctx.skin('car');
       const info = el('p', { class: 'g-score', role: 'status' });
       const bar = el('div', { class: 'racebar', 'aria-hidden': 'true' }, el('span', { class: 'rb me' }, '🟢'), el('span', { class: 'rb pc' }, '🤖'), el('span', { class: 'rb fin' }, '🏁'));
       const cv = el('canvas', { class: 'board cv', role: 'img', 'aria-label': 'Závodní dráha' });
-      const status = el('p', { class: 'g-status' }, 'Ťukni na dráhu a závod začne.');
-      root.append(info, bar, cv, status);
-      const scale = Math.min((root.clientWidth || 340), 420) / LW, dpr = window.devicePixelRatio || 1;
+      const status = el('p', { class: 'g-status' }, 'Zmáčkni šipku a závod začne.');
+      const mk = (d, label) => el('button', { class: 'steerb', 'aria-label': label, onpointerdown: e => { e.preventDefault(); steer(d); }, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); steer(d); } } }, H.ico(d));
+      root.append(info, bar, cv, status, el('div', { class: 'steer' }, mk('left', 'Doleva'), mk('right', 'Doprava')));
+      const scale = Math.min((root.clientWidth || 340), 420, (innerHeight - 250) * LW / LH) / LW, dpr = window.devicePixelRatio || 1;
       cv.width = LW * scale * dpr; cv.height = LH * scale * dpr; cv.style.width = LW * scale + 'px'; cv.style.height = LH * scale + 'px';
       const x = cv.getContext('2d'); x.scale(scale * dpr, scale * dpr);
       let lane = 1, px = LANES[1], v = 0, dist = 0, rdist = 0, rlane = 0, time = 0, coins = 0, shield = ctx.upg.shield;
@@ -76,7 +77,7 @@
       const loop = t => {
         if (!running) return;
         const dt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
-        if (!document.hidden) {
+        if (!document.hidden && !ctx.paused) {
           time += dt; flash = Math.max(0, flash - dt);
           v = Math.min(VMAX, v + 300 * dt);
           dist += v * dt; rdist += VMAX * RIVAL[ctx.diff] * (0.97 + 0.06 * Math.sin(time * 0.7)) * dt;
@@ -103,7 +104,7 @@
       };
       const steer = d => {
         if (over) return;
-        if (!running) { running = true; last = performance.now(); status.textContent = ''; ctx.touch(); raf = requestAnimationFrame(loop); if (d === 'tap') return; }
+        if (!running) { running = true; last = performance.now(); status.textContent = ''; ctx.touch(); raf = requestAnimationFrame(loop); }
         if (d === 'left' && lane > 0) lane--; else if (d === 'right' && lane < 2) lane++;
       };
       H.swipe(cv, (d, e) => {

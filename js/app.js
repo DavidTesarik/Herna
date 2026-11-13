@@ -2,19 +2,23 @@
 /* Herna — obrazovky, průběh her, odměny */
 (function () {
   const { el } = H;
-  const VERSION = '1.2.0';
+  const VERSION = '2.1.0';
   const $ = s => document.querySelector(s);
-  let S, view = 'home', cur = null; // cur = { g, inst, diff, variant, mode, started, ended }
+  let S, view = 'home', cur = null, menuOpen = false; // cur = právě otevřená hra
 
   /* ---------- Vzhled ---------- */
+  let previewSkin = null, previewT = 0;
   const applyTheme = () => {
     const t = S.settings.theme;
     const dark = t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
     const r = document.documentElement;
     r.dataset.mode = dark ? 'dark' : 'light';
-    r.dataset.skin = S.active.theme;
+    const skinId = previewSkin || S.active.theme, skin = H.SKINS.theme.items.find(i => i.id === skinId) || H.SKINS.theme.items[0];
+    r.dataset.skin = skin.id; r.dataset.fx = skin.fx;
     r.classList.toggle('no-motion', !H.motionOK());
-    const m = $('meta[name="theme-color"]'); if (m) m.setAttribute('content', dark ? '#0b1020' : '#f4f5fb');
+    const m = $('meta[name="theme-color"]'); if (m) m.setAttribute('content', dark ? '#09090b' : '#f5f5f7');
+    const bgSel = S.active.bg || 'auto';
+    H.fx.set(skin.id, dark, bgSel === 'auto' ? undefined : bgSel === 'none' ? null : bgSel);
   };
 
   /* ---------- Toast a dialogy ---------- */
@@ -55,8 +59,10 @@
 
   /* ---------- Společné kousky ---------- */
   const bar = (into, need, label) => el('div', { class: 'xpbar', role: 'img', 'aria-label': `${label}: ${into} z ${need} XP` }, el('span', { style: `width:${Math.min(100, into / need * 100)}%` }));
-  const diffName = (g, d) => (g.diffNames || H.DIFFS)[d];
-  const bestKey = (g, p) => (g.noDiff ? 'x' : p.diff) + (p.variant ? 'v' : '');
+  const diffNames = (g, mode) => g.noDiff ? null : g.diffNamesFor ? g.diffNamesFor(mode) : (g.diffNames || H.DIFFS);
+  const diffName = (g, d, mode) => (diffNames(g, mode || (g.modes ? g.modes[0].id : null)) || H.DIFFS)[d];
+  const bestKey = (g, p) => (g.modes && p.mode && p.mode !== g.modes[0].id ? p.mode + ':' : '') + (g.noDiff ? 'x' : p.diff) + (p.variant ? 'v' : '');
+  const bestLabel = (g, k) => { const [a, b] = k.includes(':') ? k.split(':') : [null, k]; return (g.noDiff || b[0] === 'x' ? '' : diffName(g, b[0], a) + ' ') + (b.endsWith('v') && g.variant ? '(' + g.variant.name + ') ' : ''); };
   const fmtBest = (g, v) => g.bestFmt === 'time' ? H.fmtTime(v) : g.bestFmt === 'sec' ? v.toFixed(1) + ' s' : g.bestFmt === 'tries' ? v + '. pokus' : String(v);
   const tileInfo = g => {
     const st = S.games[g.id]; if (!st || !st.played) return 'Ještě nehráno';
@@ -72,6 +78,7 @@
     top.append(el('button', { class: 'player', 'aria-label': `Profil. Level ${L.level}, ${S.coins} mincí`, onclick: () => go('profile') },
       el('span', { class: 'lvl', text: L.level }),
       el('span', { class: 'pmid' }, el('span', { class: 'plabel', text: `Level ${L.level}` }), bar(L.into, L.need, 'Postup levelu')),
+      S.streak >= 2 ? el('span', { class: 'streak', role: 'img', 'aria-label': `Série ${S.streak} výher`, text: '🔥' + S.streak }) : null,
       el('span', { class: 'coins', id: 'coinsTop', text: '🪙 ' + H.fmt(S.coins) })));
   };
   const renderHome = main => {
@@ -79,15 +86,16 @@
     const qs = S.daily.quests, done = qs.filter(q => q.done).length;
     main.append(
       el('h1', { class: 'sr', text: 'Herna' }),
+      el('p', { class: 'eyebrow', text: 'Tvoje hry' }),
       el('details', { class: 'quests' },
-        el('summary', {}, el('span', { text: '📅 Denní výzvy' }), el('span', { class: 'pill', text: `${done}/3 splněno` })),
+        el('summary', {}, el('span', { text: 'Denní výzvy' }), el('span', { class: 'pill', text: `${done}/3 splněno` })),
         el('ul', {}, qs.map(q => el('li', { class: q.done ? 'done' : '' },
-          el('span', { text: (q.done ? '✅ ' : '⬜ ') + q.text }),
+          el('span', { text: (q.done ? '✓ ' : '○ ') + q.text }),
           el('span', { class: 'qr', text: q.done ? 'splněno' : `${Math.min(q.prog, q.n)}/${q.n} · +${q.reward} 🪙` }))))),
       el('div', { class: 'grid' }, H.games.map(g => {
         const st = S.games[g.id], gl = H.gameLevel(st ? st.xp : 0).level;
-        return el('button', { class: 'tile', style: `--c1:${g.grad[0]};--c2:${g.grad[1]};background-color:${g.grad[0]}`, onclick: () => openGame(g.id) },
-          el('span', { class: 'ticon', 'aria-hidden': 'true', text: g.icon }),
+        return el('button', { class: 'tile', style: `--c1:${g.grad[0]};--c2:${g.grad[1]}`, onclick: () => openGame(g.id) },
+          el('span', { class: 'tico' }, H.ico(g.id)),
           el('span', { class: 'tname', text: g.name }),
           el('span', { class: 'tdesc', text: S.saves[g.id] ? '▶ Rozehráno' : tileInfo(g) }),
           el('span', { class: 'tlvl', text: 'Úr. ' + gl }));
@@ -103,33 +111,45 @@
   };
   const renderShop = main => {
     main.append(el('h1', { text: 'Obchod' }), el('p', { class: 'muted', text: 'Mince získáváš hraním. Nic se tu nekupuje za skutečné peníze.' }));
-    main.append(el('h2', { text: 'Vylepšení' }), el('div', { class: 'list' }, H.UPGRADES.map(u => {
-      const lv = S.upg[u.id], max = lv >= u.prices.length, price = u.prices[lv];
+    const upgrades = (title, group) => main.append(el('h2', { text: title }), el('div', { class: 'list' }, H.UPGRADES.filter(u => u.group === group).map(u => {
+      const lv = S.upg[u.id] || 0, max = lv >= u.prices.length, price = u.prices[lv];
       return el('div', { class: 'row' },
         el('span', { class: 'ricon', 'aria-hidden': 'true', text: u.icon }),
         el('div', { class: 'rmid' }, el('strong', { text: `${u.name} · úroveň ${lv}/${u.prices.length}` }), el('span', { class: 'muted', text: u.desc })),
-        el('button', { class: 'btn small' + (max ? '' : ' primary'), disabled: max, text: max ? 'Maximum' : `🪙 ${price}`, 'aria-label': max ? `${u.name}: maximum` : `Vylepšit ${u.name} za ${price} mincí`,
-          onclick: () => buy(`${u.name} (úroveň ${lv + 1})`, price, () => { S.upg[u.id]++; }) }));
+        el('button', { class: 'btn small' + (max ? '' : ' primary'), disabled: max, text: max ? 'Maximum' : `🪙 ${H.fmt(price)}`, 'aria-label': max ? `${u.name}: maximum` : `Vylepšit ${u.name} za ${H.fmt(price)} mincí`,
+          onclick: () => buy(`${u.name} (úroveň ${lv + 1})`, price, () => { S.upg[u.id] = lv + 1; }) }));
     })));
-    for (const cat in H.SKINS) {
+    const skins = cat => {
       const c = H.SKINS[cat];
-      main.append(el('h2', { text: c.name }), el('div', { class: 'skins' }, c.items.map(it => {
+      main.append(el('h2', { text: c.name }), el('div', { class: 'skins' + (cat === 'city' ? ' two' : '') }, c.items.map(it => {
         const own = S.owned[cat].includes(it.id), act = S.active[cat] === it.id;
-        const prev = cat === 'theme' ? el('span', { class: 'sw', style: `background:${it.sw}` })
-          : cat === 'pieces' ? el('span', { class: 'swt' }, el('b', { style: `color:${it.ca}`, text: it.a }), el('b', { style: `color:${it.cb}`, text: it.b }))
-            : cat === 'car' ? el('span', { class: 'sw car', style: `background:${it.c};border-color:${it.s}` })
-              : el('span', { class: 'swt', text: Array.from(it.set).slice(0, 2).join('') });
+        const prev = cat === 'bg' || cat === 'win' ? el('span', { class: 'swe', text: it.sw })
+          : cat === 'cards' && it.art ? el('span', { class: 'swc', html: H.cardFace(it, 0) + H.cardFace(it, 3) })
+          : cat === 'theme' ? el('span', { class: 'sw', style: `background:${it.sw}` })
+          : cat === 'city' ? el('span', { class: 'sthumb', html: H.scene(3, .6, '', it.id) })
+            : cat === 'pieces' ? el('span', { class: 'swt' }, el('b', { style: `color:${it.ca}`, text: it.a }), el('b', { style: `color:${it.cb}`, text: it.b }))
+              : cat === 'car' ? el('span', { class: 'sw car', style: `background:${it.c};border-color:${it.s}` })
+                : el('span', { class: 'swt', text: Array.from(it.set).slice(0, 2).join('') });
         return el('button', { class: 'skin' + (act ? ' active' : ''), 'aria-pressed': String(act),
-          'aria-label': `${it.name}: ${act ? 'aktivní' : own ? 'použít' : 'koupit za ' + it.price + ' mincí'}`,
+          'aria-label': `${it.name}${it.rar ? ', ' + it.rar : ''}: ${act ? 'aktivní' : own ? 'použít' : 'koupit za ' + H.fmt(it.price) + ' mincí'}`,
           onclick: () => {
             if (act) return;
-            if (own) { S.active[cat] = it.id; H.save(); H.sfx('tap'); applyTheme(); render(); return; }
-            buy(it.name, it.price, () => { S.owned[cat].push(it.id); S.active[cat] = it.id; });
+            if (own) { S.active[cat] = it.id; previewSkin = null; H.save(); H.sfx('tap'); applyTheme(); render(); return; }
+            const get = () => buy(it.name, it.price, () => { S.owned[cat].push(it.id); S.active[cat] = it.id; previewSkin = null; });
+            if (cat !== 'theme') return get();
+            H.modal({ title: `${it.name} · ${it.rar}`, body: [el('p', { class: 'muted', text: 'Co tenhle motiv umí:' }), el('ul', { class: 'fxlist' }, it.about.map(t => el('li', { text: t }))),
+              el('p', { class: 'muted', text: S.coins >= it.price ? `Cena ${H.fmt(it.price)} mincí.` : `Cena ${H.fmt(it.price)} mincí, chybí ti ${H.fmt(it.price - S.coins)}.` })],
+              actions: [{ label: 'Vyzkoušet na 10 s', fn: () => {
+                previewSkin = it.id; applyTheme(); H.toast(`Náhled motivu ${it.name}. Za chvíli se vrátí tvůj.`);
+                clearTimeout(previewT); previewT = setTimeout(() => { previewSkin = null; applyTheme(); }, 10000);
+              } }, { label: 'Koupit', primary: true, fn: () => { setTimeout(get, 0); } }] });
           } },
-          el('span', { class: 'sprev', 'aria-hidden': 'true' }, prev), el('span', { class: 'sname', text: it.name }),
-          el('span', { class: 'sstate', text: act ? '✓ Aktivní' : own ? 'Použít' : `🪙 ${it.price}` }));
+          el('span', { class: 'sprev', 'aria-hidden': 'true' }, prev), el('span', { class: 'sname', text: it.name }), it.rar ? el('span', { class: 'srar', text: it.rar }) : null,
+          el('span', { class: 'sstate', text: act ? '✓ Aktivní' : own ? 'Použít' : `🪙 ${H.fmt(it.price)}` }));
       })));
-    }
+      if (cat === 'win') main.append(el('button', { class: 'btn small ghost', text: 'Přehrát aktivní oslavu', onclick: () => H.confetti() }));
+    };
+    upgrades('Vylepšení města', 'city'); skins('city'); skins('theme'); skins('bg'); skins('win'); upgrades('Vylepšení her', 'game'); skins('cards'); skins('pieces'); skins('car');
   };
 
   /* ---------- Profil a statistiky ---------- */
@@ -142,7 +162,8 @@
         el('div', { class: 'stats3' },
           el('div', {}, el('b', { text: played }), el('span', { text: 'her' })),
           el('div', {}, el('b', { text: wins }), el('span', { text: 'výher' })),
-          el('div', {}, el('b', { text: S.questsDone }), el('span', { text: 'výzev' })))));
+          el('div', {}, el('b', { text: S.questsDone }), el('span', { text: 'výzev' }))),
+        el('p', { class: 'muted', text: `🔥 Série výher: teď ${S.streak}, nejdelší ${S.bestWin}` })));
     main.append(el('h2', { text: 'Hry' }));
     if (!played) main.append(el('p', { class: 'empty', text: 'Zatím tu nic není. Zahraj si první hru a statistiky se začnou plnit.' }, el('br'), el('button', { class: 'btn primary', text: 'Vybrat hru', onclick: () => go('home') })));
     for (const g of H.games) {
@@ -151,7 +172,7 @@
       const lines = [];
       if (g.vsAI) lines.push(`Výhry ${st.wins} · prohry ${st.losses} · remízy ${st.draws}`, `Série výher: teď ${st.streak}, nejdelší ${st.bestStreak}`);
       if (!g.noDiff) lines.push(Object.keys(st.byDiff).sort().map(d => `${diffName(g, d)}: ${g.vsAI || g.winLose ? st.byDiff[d].w + ' výher z ' : ''}${st.byDiff[d].p}${g.vsAI || g.winLose ? '' : '×'}`).join(' · '));
-      const bests = Object.keys(st.best).sort().map(k => `${g.noDiff ? '' : diffName(g, k[0]) + ' '}${k.endsWith('v') ? '(' + g.variant.name + ') ' : ''}${fmtBest(g, st.best[k])}`);
+      const bests = Object.keys(st.best).sort().map(k => `${bestLabel(g, k)}${fmtBest(g, st.best[k])}`);
       if (bests.length) lines.push((g.bestFmt === 'time' || g.bestFmt === 'sec' ? 'Nejlepší časy: ' : 'Rekordy: ') + bests.join(' · '));
       if (g.vsAI || g.winLose) lines.push('Posledních ' + st.last.length + ': ' + st.last.map(r => ({ w: 'V', l: 'P', d: 'R' }[r] || '•')).join(' ') + '  (V výhra, P prohra, R remíza)');
       main.append(el('details', { class: 'card gstat' },
@@ -216,87 +237,131 @@
   };
 
   /* ---------- Navigace ---------- */
-  const VIEWS = { home: ['🎮', 'Hry', renderHome], city: ['🏙️', 'Město', m => H.renderCity(m)], shop: ['🛍️', 'Obchod', renderShop], profile: ['🏆', 'Profil', renderProfile], settings: ['⚙️', 'Nastavení', renderSettings] };
+  const VIEWS = { home: ['home', 'Hry', renderHome], city: ['city', 'Město', m => H.renderCity(m)], shop: ['shop', 'Obchod', renderShop], profile: ['profile', 'Profil', renderProfile], settings: ['settings', 'Nastavení', renderSettings] };
   const render = () => {
     S = H.S;
     const main = $('#view'); main.textContent = ''; main.className = 'view v-' + view;
-    document.body.classList.toggle('ingame', view === 'game');
+    document.body.classList.toggle('ingame', view === 'game'); H.fx.wake();
     if (view === 'game') return;
     renderTop();
     const nav = $('#nav'); nav.textContent = '';
     for (const k in VIEWS) nav.append(el('button', { class: 'navb', 'aria-current': k === view ? 'page' : null, onclick: () => go(k) },
-      el('span', { 'aria-hidden': 'true', text: VIEWS[k][0] }), el('span', { text: VIEWS[k][1] })));
+      H.ico(VIEWS[k][0]), el('span', { text: VIEWS[k][1] })));
     VIEWS[view][2](main);
   };
   H.rerender = () => render();
-  const go = v => { if (cur) { cur.inst.destroy(); cur = null; } view = v; render(); window.scrollTo(0, 0); };
+  const go = v => { if (cur) { if (cur.inst) cur.inst.destroy(); cur = null; } closeMenu(); view = v; render(); $('#view').scrollTop = 0; };
 
-  /* ---------- Hra ---------- */
+  /* ---------- Hra: celá obrazovka patří hře, nastavení je v rychlém menu ---------- */
+  const variantOpen = g => !!g.variant && H.gameLevel(H.gstat(g.id).xp).level >= g.variant.level;
+  const menuKey = e => {
+    if (e.key !== 'Escape' || document.querySelector('.modal')) return;
+    e.stopPropagation();
+    if (menuOpen === 'pause') resume(); else if (menuOpen === 'start') go('home');
+  };
+  function closeMenu() {
+    const m = $('#gmenu'); if (m) m.textContent = '';
+    document.removeEventListener('keydown', menuKey, true);
+    if (cur) { cur.stage.inert = false; cur.pauseBtn.hidden = !cur.inst; }
+    menuOpen = false;
+  }
+  const pause = () => { if (!cur || !cur.inst || menuOpen) return; if (cur.ctx) cur.ctx.paused = true; menu(cur.ended ? 'end' : 'pause'); };
+  const resume = () => { if (cur && cur.ctx) cur.ctx.paused = false; closeMenu(); if (cur) cur.pauseBtn.focus({ preventScroll: true }); };
   const openGame = id => {
-    const g = H.byId[id], p = H.pref(id), sv = S.saves[id];
+    const g = H.byId[id];
+    if (cur && cur.inst) cur.inst.destroy();
     view = 'game'; render();
-    if (sv) startGame(g, sv.diff, sv.variant, sv.mode, sv.state);
-    else startGame(g, p.diff, p.variant && variantOpen(g), p.mode, null);
-  };
-  const variantOpen = g => g.variant && H.gameLevel(H.gstat(g.id).xp).level >= g.variant.level;
-  const startGame = (g, diff, variant, mode, saved) => {
-    if (cur) cur.inst.destroy();
-    const p = H.pref(g.id), main = $('#view');
-    main.textContent = '';
-    const chipText = [g.modes ? g.modes.find(m => m.id === mode).name : null, g.noDiff ? null : diffName(g, diff), variant ? g.variant.name : null].filter(Boolean).join(' · ') || 'Možnosti';
     const stage = el('div', { class: 'stage' });
-    main.append(...[
-      el('header', { class: 'ghead' },
-        el('button', { class: 'btn small', 'aria-label': 'Zpět na seznam her', text: '‹ Hry', onclick: leave }),
-        el('h1', { text: g.name }),
-        el('button', { class: 'icon', 'aria-label': 'Nová hra', text: '↻', onclick: () => guard(() => startGame(g, cur.diff, cur.variant, cur.mode, null)) })),
-      el('button', { class: 'chip', 'aria-label': 'Možnosti hry: ' + chipText, onclick: () => setup(g) }, chipText + '  ▾'),
-      S.seenHelp[g.id] ? null : el('div', { class: 'help' }, el('p', {}, el('strong', { text: 'Jak hrát: ' }), g.help),
-        el('button', { class: 'btn small', text: 'Rozumím', onclick: e => { S.seenHelp[g.id] = 1; H.save(); e.target.parentNode.remove(); } })),
-      stage, el('div', { id: 'result' })].filter(Boolean));
+    const pauseBtn = el('button', { class: 'pauseb', 'aria-label': 'Pauza a menu', hidden: true, onclick: () => pause() }, H.ico('pause'));
+    $('#view').append(el('h1', { class: 'sr', text: g.name }), pauseBtn, stage, el('div', { id: 'gmenu' }));
+    cur = { g, stage, pauseBtn, inst: null, ctx: null, run: null, started: false, ended: false, result: null };
+    menu('start');
+  };
+  const startGame = saved => {
+    const me = cur, g = me.g, p = H.pref(g.id);
+    if (me.inst) me.inst.destroy();
+    me.stage.textContent = ''; me.stage.className = 'stage';
+    const mode = saved ? saved.mode : p.mode, diff = saved ? saved.diff : (p.diff || 0);
+    const variant = saved ? saved.variant : !!(p.variant && variantOpen(g));
+    const opts = saved ? (saved.opts || {}) : JSON.parse(JSON.stringify(p.opts || {}));
+    const pvp = saved ? !!saved.pvp : !!(g.pvp && p.vs === 'pvp');
     const aiFirst = !saved && g.vsAI && p.n % 2 === 1;
-    if (!saved) { p.n++; delete S.saves[g.id]; H.save(); }
-    const undos = (g.noDiff || diff < 3) ? S.upg.undo : 0;
-    const me = cur = { g, diff, variant, mode, started: !!saved, ended: false, inst: null };
-    const ctx = {
-      diff, variant, mode, saved, aiFirst, undos, undosMax: undos, upg: S.upg, skin: H.skin,
-      touch() { me.started = true; },
-      save(state) { me.started = true; if (g.saveable && cur === me && !me.ended) { S.saves[g.id] = { diff, variant, mode, state }; H.save(); } },
-      end(res) { if (cur !== me || me.ended) return; me.ended = true; onEnd(me, res); }
+    if (!saved) { p.n++; delete S.saves[g.id]; }
+    S.seenHelp[g.id] = 1; H.save();
+    const undos = (g.noDiff || diff < 3 || pvp) ? S.upg.undo : 0, run = {};
+    Object.assign(me, { diff, variant, mode, run, started: !!saved, ended: false, result: null });
+    const ctx = me.ctx = {
+      diff, variant, mode, opts, pvp, saved: saved ? saved.state : null, aiFirst, undos, undosMax: undos, upg: S.upg, skin: H.skin, paused: false,
+      touch() { if (me.run === run) me.started = true; },
+      save(state) { if (cur !== me || me.run !== run || me.ended) return; me.started = true; if (g.saveable) { S.saves[g.id] = { diff, variant, mode, opts, pvp, state }; H.save(); } },
+      end(res) { if (cur !== me || me.run !== run || me.ended) return; me.ended = true; onEnd(me, res); }
     };
-    me.inst = g.start(stage, ctx);
+    me.inst = { destroy() {} };
+    closeMenu();
+    $('#view').scrollTop = 0;
+    me.inst = g.start(me.stage, ctx);
   };
-  const guard = fn => {
-    if (!cur || !cur.started || cur.ended) return fn();
-    confirmBox('Ukončit rozehranou hru?', 'Tahle partie se zahodí a nezapočítá.', 'Ukončit a začít znovu', fn);
-  };
-  const leave = () => {
-    if (cur && cur.started && !cur.ended && !cur.g.saveable) return confirmBox('Odejít ze hry?', 'Tahle partie se zahodí a nezapočítá.', 'Odejít', () => go('home'));
-    if (cur && cur.started && !cur.ended) H.toast('Hra je uložená. Pokračuješ příště.');
-    go('home');
-  };
-  const setup = g => {
-    const p = H.pref(g.id), sel = { diff: cur.diff, variant: cur.variant, mode: cur.mode };
-    const open = variantOpen(g);
-    const radios = (name, items, key) => el('div', { class: 'seg', role: 'radiogroup', 'aria-label': name }, items.map(([v, t]) => {
-      const b = el('button', { class: 'segb', role: 'radio', 'aria-checked': String(sel[key] === v), text: t, onclick: () => { sel[key] = v; b.parentNode.querySelectorAll('.segb').forEach(x => x.setAttribute('aria-checked', String(x === b))); } });
-      return b;
-    }));
-    const body = [];
-    if (g.modes) body.push(el('h3', { text: 'Režim' }), radios('Režim', g.modes.map(m => [m.id, m.name]), 'mode'));
-    if (!g.noDiff) {
-      body.push(el('h3', { text: 'Obtížnost' }), radios('Obtížnost', (g.diffNames || H.DIFFS).map((t, i) => [i, t]), 'diff'));
-      if (g.vsAI) body.push(el('p', { class: 'muted', text: 'Vyšší obtížnost dává víc XP a mincí. Na Nemožné nejde vracet tahy.' }));
+  const menu = kind => {
+    const me = cur, g = me.g, p = H.pref(g.id), box = $('#gmenu'), sv = S.saves[g.id];
+    if (!p.opts) p.opts = {};
+    if (g.pvp && p.vs !== 'pvp') p.vs = 'ai';
+    menuOpen = kind; me.stage.inert = true; me.pauseBtn.hidden = true;
+    const optsBox = el('div', { class: 'gopts' });
+    const seg = (name, items, key) => el('div', { class: 'seg', role: 'radiogroup', 'aria-label': name }, items.map(([v, t]) =>
+      el('button', { class: 'segb', role: 'radio', 'aria-checked': String(p[key] === v), text: t, onclick: () => { p[key] = v; H.save(); H.sfx('tap'); drawOpts(); } })));
+    function drawOpts() {
+      optsBox.textContent = '';
+      const nodes = [];
+      if (g.modes) nodes.push(el('h3', { text: 'Režim' }), seg('Režim', g.modes.map(m => [m.id, m.name]), 'mode'));
+      if (g.pvp) nodes.push(el('h3', { text: 'Soupeř' }), seg('Soupeř', [['ai', 'Počítač'], ['pvp', 'Dva hráči na telefonu']], 'vs'));
+      const dn = g.pvp && p.vs === 'pvp' ? null : diffNames(g, p.mode);
+      if (dn) nodes.push(el('h3', { text: 'Obtížnost' }), seg('Obtížnost', dn.map((t, i) => [i, t]), 'diff'));
+      if (g.menuExtra) nodes.push(...g.menuExtra(p, p.opts, () => { H.save(); drawOpts(); }));
+      if (g.variant) {
+        const open = variantOpen(g);
+        nodes.push(el('label', { class: 'row vrow' },
+          el('div', { class: 'rmid' }, el('strong', { text: (open ? '' : '🔒 ') + 'Varianta: ' + g.variant.name }), el('span', { class: 'muted', text: g.variant.desc + (open ? '' : ` Odemkne se na úrovni ${g.variant.level} této hry.`) })),
+          el('input', { type: 'checkbox', class: 'switch', role: 'switch', 'aria-label': 'Varianta ' + g.variant.name, disabled: !open, checked: p.variant && open, onchange: e => { p.variant = e.target.checked; H.save(); } })));
+      }
+      optsBox.append(...nodes);
     }
-    if (g.variant) body.push(el('h3', { text: 'Varianta' }), el('label', { class: 'row' },
-      el('div', { class: 'rmid' }, el('strong', { text: (open ? '' : '🔒 ') + g.variant.name }), el('span', { class: 'muted', text: g.variant.desc + (open ? '' : ` Odemkne se, až tahle hra dosáhne úrovně ${g.variant.level}.`) })),
-      el('input', { type: 'checkbox', class: 'switch', role: 'switch', disabled: !open, checked: sel.variant && open, onchange: e => { sel.variant = e.target.checked; } })));
-    body.push(el('h3', { text: 'Jak hrát' }), el('p', { text: g.help }));
-    if (cur.started && !cur.ended) body.push(el('p', { class: 'warn', text: 'Pozor: změnou začne nová hra a rozehraná partie se zahodí.' }));
-    H.modal({ title: g.name, body, actions: [{ label: 'Zavřít' }, { label: 'Hrát', primary: true, fn: () => {
-      p.diff = sel.diff; p.variant = sel.variant; p.mode = sel.mode; H.save();
-      startGame(g, sel.diff, sel.variant, sel.mode, null);
-    } }] });
+    drawOpts();
+    const hasOpts = !!(g.modes || diffNames(g, p.mode) || g.variant || g.menuExtra);
+    const parts = [];
+    const gl = H.gameLevel(H.gstat(g.id).xp);
+    parts.push(el('div', { class: 'mhead' }, el('span', { class: 'tico', style: `--c1:${g.grad[0]};--c2:${g.grad[1]}` }, H.ico(g.id)),
+      el('div', { class: 'rmid' }, el('h2', { text: g.name }), el('span', { class: 'muted', text: `Úroveň ${gl.level} · ${g.desc}` }))));
+    if (kind === 'end' && me.result) {
+      const R = me.result, r = R.r;
+      const title = R.title ? R.title : r === 'win' ? 'Výhra' : r === 'loss' ? 'Prohra' : r === 'draw' ? 'Remíza' : `Konec hry · ${R.res.score}`;
+      parts.push(el('div', { class: 'result' + (R.hot ? ' hot' : '') + ' r-' + r },
+        el('p', { class: 'rtitle', role: 'status', text: title + (R.hot ? `  🔥×${S.streak}` : '') }),
+        el('p', { class: 'rewards' }, el('span', { class: 'rw', text: `+${R.xp} XP` }), el('span', { class: 'rw', text: `+${H.fmt(R.coins)} 🪙` })),
+        el('div', { class: 'glvl' }, el('span', { text: `${g.name} · úroveň ${R.G1.level}` }), bar(R.G1.into, R.G1.need, 'Postup úrovně hry')),
+        R.extras.length ? el('ul', { class: 'extras' }, R.extras.map(t => el('li', { text: t }))) : null));
+    }
+    const btn = (label, fn, cls) => el('button', { class: 'btn big ' + (cls || ''), text: label, onclick: fn });
+    let primary;
+    const btns = el('div', { class: 'mbtns' });
+    if (kind === 'start') {
+      if (sv) btns.append(primary = btn('Pokračovat v rozehrané', () => startGame(sv), 'primary'), btn('Nová hra', () => startGame(null)));
+      else btns.append(primary = btn('Hrát', () => startGame(null), 'primary'));
+    } else if (kind === 'pause') {
+      btns.append(primary = btn('Pokračovat', resume, 'primary'), btn('Nová hra', () => startGame(null)));
+    } else {
+      btns.append(primary = btn('Hrát znovu', () => startGame(null), 'primary'), btn('Prohlédnout pole', () => closeMenu()));
+    }
+    if (hasOpts) parts.push(kind === 'start' ? optsBox : el('details', { class: 'mdet' }, el('summary', { text: 'Nastavení hry' }), optsBox, kind === 'pause' ? el('p', { class: 'muted', text: 'Změny se projeví v nové hře.' }) : null));
+    parts.push(el('details', { class: 'mdet', open: !S.seenHelp[g.id] }, el('summary', { text: 'Jak hrát' }), el('p', { text: g.help })));
+    parts.push(btns);
+    parts.push(el('button', { class: 'btn ghost mback', onclick: () => {
+      const keep = me.started && !me.ended && g.saveable && S.saves[g.id];
+      go('home'); if (keep) H.toast('Hra je uložená. Pokračuješ příště.');
+    } }, H.ico('back'), el('span', { text: me.started && !me.ended && !g.saveable ? 'Ukončit hru a zpět na hry' : 'Zpět na hry' })));
+    box.textContent = '';
+    box.append(el('div', { class: 'gmenu k-' + kind, role: 'dialog', 'aria-modal': 'true', 'aria-label': g.name + ': menu' }, el('div', { class: 'gpanel' }, parts)));
+    document.addEventListener('keydown', menuKey, true);
+    primary.focus({ preventScroll: true });
   };
 
   /* ---------- Konec hry a odměny ---------- */
@@ -308,12 +373,27 @@
       all: H.games.every(g => S.games[g.id] && S.games[g.id].played), p50: played >= 50, p250: played >= 250,
       lvl10: H.level(S.xp).level >= 10, rich: S.coins >= 2000, collector: owned >= 8, quest10: S.questsDone >= 10,
       city1: H.CITY.some(b => H.city.level(b.id)), cityAll: H.CITY.every(b => H.city.level(b.id)),
-      city100: H.CITY.reduce((a, b) => a + H.city.level(b.id), 0) >= 100, earn100k: S.city.earned >= 100000,
+      city100: H.CITY.reduce((a, b) => a + H.city.level(b.id), 0) >= 100, earn100k: S.city.earned >= 100000, streak7: S.bestWin >= 7,
       metro: H.city.stage() >= 5, planet: H.city.stage() >= 7, galaxy: H.city.stage() >= 9
     };
     for (const b of H.BADGES) if (!S.badges[b.id] && (tests[b.id] || (out.flags && out.flags[b.id]))) { S.badges[b.id] = H.today(); out.push(`${b.icon} Nový odznak: ${b.name}`); }
   };
+  const onEndPvp = (me, res) => {
+    const g = me.g, st = H.gstat(g.id), run = me.run, w = res.winner;
+    H.city.accrue(Date.now());
+    delete S.saves[g.id];
+    st.played++;
+    const xp = 10, coins = 5;
+    S.xp += xp; st.xp += xp; S.coins += coins;
+    H.ensureDaily();
+    for (const q of S.daily.quests) if (!q.done && q.type === 'play') { q.prog++; if (q.prog >= q.n) { q.done = true; S.coins += q.reward; S.questsDone++; } }
+    H.save();
+    me.result = { r: 'pvp', title: w ? `Vyhrál hráč ${w}` : 'Remíza', xp, coins, G1: H.gameLevel(st.xp), extras: ['Hra dvou hráčů se nepočítá do výher, série ani rekordů.'], res, hot: false };
+    setTimeout(() => { if (cur !== me || me.run !== run) return; if (w) { H.sfx('win'); H.confetti(); } else H.sfx('match'); }, 350);
+    setTimeout(() => { if (cur === me && me.run === run && !menuOpen) menu('end'); }, 1500);
+  };
   const onEnd = (me, res) => {
+    if (res.result === 'pvp') return onEndPvp(me, res);
     const { g, diff, variant } = me, st = H.gstat(g.id), r = res.result, extras = [], cityX = [];
     H.city.accrue(Date.now());
     delete S.saves[g.id];
@@ -324,12 +404,19 @@
     else if (r === 'draw') st.draws++;
     st.last.push(r[0] === 'd' && r !== 'draw' ? 'x' : r[0]); if (st.last.length > 10) st.last.shift();
     if (res.score != null) {
-      const k = bestKey(g, { diff, variant }), old = st.best[k];
+      const k = bestKey(g, { diff, variant, mode: me.mode }), old = st.best[k];
       if (old == null || (res.lower ? res.score < old : res.score > old)) { st.best[k] = res.score; if (old != null && res.score > 0) extras.push('🏅 Nový rekord: ' + fmtBest(g, res.score)); }
     }
     let xp = res.xp != null ? res.xp : r === 'win' ? [40, 70, 100, 130][diff] : r === 'draw' ? [20, 35, 50, 65][diff] : 10;
     if (variant && r === 'win' && g.id !== 'had') xp = Math.round(xp * 1.5);
-    let coins = Math.round(xp / 2) + (res.coins || 0);
+    const counts = g.vsAI || g.winLose;
+    if (counts && r === 'win') { S.streak++; S.bestWin = Math.max(S.bestWin, S.streak); }
+    else if (counts && r === 'loss') { if (S.streak >= 2) extras.push(`Série ${S.streak} výher skončila.`); S.streak = 0; }
+    const sCap = [50, 75, 100][S.upg.streakCap || 0], sPct = r === 'loss' ? 0 : Math.min(sCap, 5 * Math.max(0, S.streak - 1));
+    if (sPct) xp = Math.round(xp * (1 + sPct / 100));
+    let coins = Math.round(xp / 2) + Math.round((res.coins || 0) * (1 + sPct / 100));
+    if (sPct) extras.push(`🔥 Série ${S.streak} výher: +${sPct} % k odměně` + (sPct >= sCap ? ' (strop)' : ''));
+    const hot = sPct > 0;
     const L0 = H.level(S.xp).level, G0 = H.gameLevel(st.xp).level;
     S.xp += xp; st.xp += xp;
     const L1 = H.level(S.xp).level, G1 = H.gameLevel(st.xp);
@@ -344,36 +431,20 @@
       if (q.prog >= q.n) { q.done = true; coins += q.reward; S.questsDone++; extras.push(`📅 Výzva splněna: +${q.reward} mincí`); }
     }
     const bld = H.city.building(g.id), cr = H.city.total();
-    if (cr > 0) { const cb = Math.round(cr * (r === 'win' ? 5 : r === 'loss' ? 1 : 3)); if (cb) { coins += cb; cityX.push(`🏙️ Bonus města: +${H.fmt(cb)} mincí`); } }
-    if ((r === 'win' || (r === 'done' && xp >= 25)) && H.city.level(g.id) > 0) { S.city.boost[g.id] = Date.now() + H.city.BOOST_MS; cityX.push(`⚡ ${bld.name}: dvojnásobný výdělek na 10 minut`); }
+    if (cr > 0) { const cb = Math.round(cr * ((r === 'win' ? 5 : r === 'loss' ? 1 : 3) + (r === 'loss' ? 0 : S.upg.winBonus || 0))); if (cb) { coins += cb; cityX.push(`🏙️ Bonus města: +${H.fmt(cb)} mincí`); } }
+    if ((r === 'win' || (r === 'done' && xp >= 25)) && H.city.level(g.id) > 0) { S.city.boost[g.id] = Date.now() + H.city.boostMs(); cityX.push(`⚡ ${bld.name}: ${String(H.city.boostX()).replace('.', ',')}× výdělek na ${H.city.boostMs() / 60000} minut`); }
     if (st.played === 1) cityX.push(`🏗️ Ve městě teď můžeš postavit: ${bld.name}`);
     S.coins += coins;
     extras.flags = Object.assign({ imp: r === 'win' && diff === 3 && g.vsAI, hard: r === 'win' && diff >= 2 && g.vsAI }, res.flags || {});
     checkBadges(extras);
     H.save();
-    const good = r === 'win' || (r === 'done' && extras.length > 0);
+    const good = r === 'win' || (r === 'done' && extras.length > (hot ? 1 : 0)), run = me.run;
+    me.result = { r, xp, coins, G1, extras: extras.concat(cityX), res, hot };
     setTimeout(() => {
-      if (cur !== me) return;
+      if (cur !== me || me.run !== run) return;
       if (good) { H.sfx(L1 > L0 ? 'level' : 'win'); H.confetti(); H.buzz([30, 40, 60]); } else if (r === 'loss') H.sfx('lose'); else H.sfx('match');
-      showResult(me, r, xp, coins, G1, extras.concat(cityX), res);
-    }, 500);
-  };
-  const showResult = (me, r, xp, coins, G1, extras, res) => {
-    const g = me.g, box = $('#result'); if (!box) return;
-    const title = r === 'win' ? '🎉 Výhra!' : r === 'loss' ? '😵 Prohra' : r === 'draw' ? '🤝 Remíza' : `Konec hry · ${res.score}`;
-    const again = el('button', { class: 'btn primary big', text: 'Hrát znovu', onclick: () => startGame(g, me.diff, me.variant, me.mode, null) });
-    const details = el('div', { class: 'rdetails' },
-      el('p', { class: 'rewards' }, el('span', { class: 'rw', text: `+${xp} XP` }), el('span', { class: 'rw', text: `+${H.fmt(coins)} 🪙` })),
-      el('div', { class: 'glvl' }, el('span', { text: `${g.name} · úroveň ${G1.level}` }), bar(G1.into, G1.need, 'Postup úrovně hry')),
-      extras.length ? el('ul', { class: 'extras' }, extras.map(t => el('li', { text: t }))) : null);
-    const hide = el('button', { class: 'btn small ghost', 'aria-expanded': 'true', text: 'Prohlédnout pole', onclick: () => {
-      const h = details.hidden = !details.hidden; hide.textContent = h ? 'Zobrazit odměny' : 'Prohlédnout pole'; hide.setAttribute('aria-expanded', String(!h));
-    } });
-    box.textContent = '';
-    box.append(el('section', { class: 'sheet', 'aria-label': 'Výsledek hry' },
-      el('div', { class: 'shead' }, el('h2', { text: title }), hide), details,
-      el('div', { class: 'sbtns' }, el('button', { class: 'btn big', text: 'Domů', onclick: () => go('home') }), again)));
-    again.focus({ preventScroll: true });
+    }, 350);
+    setTimeout(() => { if (cur === me && me.run === run && !menuOpen) menu('end'); }, good ? 1500 : 1100);
   };
 
   /* ---------- Start ---------- */
@@ -391,6 +462,9 @@
   S.city.stage = Math.max(S.city.stage || 0, H.city.stage());
   const away = S.city.last ? Date.now() - S.city.last : 0, gained = H.city.accrue(Date.now());
   H.save();
+  document.addEventListener('dblclick', e => e.preventDefault());
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && view === 'game' && cur && cur.inst && !menuOpen && !document.querySelector('.modal')) pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && cur && cur.g.realtime && cur.started && !cur.ended && !menuOpen) pause(); });
   render();
   if (gained >= 1 && away > 120000) {
     const h = Math.min(away, H.city.capHours() * 3600000) / 3600000;

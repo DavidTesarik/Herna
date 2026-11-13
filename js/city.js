@@ -15,7 +15,7 @@
     { id: 'lode', name: 'Přístav', icon: '⚓', cost: 15000, rate: 45 },
     { id: 'dama', name: 'Zámek', icon: '🏰', cost: 30000, rate: 75 }
   ];
-  const CAP_H = [8, 12, 16, 24], BOOST_MS = 600000;
+  const CAP_H = [8, 12, 16, 24];
   H.STAGES = [
     { name: 'Osada', need: 0, text: 'Pár stanů u ohně. Odtud to všechno začíná.' },
     { name: 'Vesnice', need: 3, text: 'První domky a pěšina mezi nimi.' },
@@ -32,23 +32,24 @@
   ];
   const by = id => H.CITY.find(b => b.id === id);
   const C = H.city = {
-    BOOST_MS,
+    boostMs: () => 600000 + 300000 * (H.S.upg.boostLen || 0),
+    boostX: () => 2 + 0.5 * (H.S.upg.boostPow || 0),
     building: by,
     level: id => H.S.city.b[id] || 0,
     played: id => !!(H.S.games[id] && H.S.games[id].played),
     maxLevel: id => 10 * H.gameLevel(H.S.games[id] ? H.S.games[id].xp : 0).level,
-    cost: id => Math.round(by(id).cost * Math.pow(1.15, C.level(id))),
+    cost: id => Math.round(by(id).cost * Math.pow(1.15, C.level(id)) * (1 - 0.04 * (H.S.upg.discount || 0))),
     sum: () => H.CITY.reduce((a, b) => a + C.level(b.id), 0),
     stage() { const n = C.sum(); let i = 0; while (i + 1 < H.STAGES.length && n >= H.STAGES[i + 1].need) i++; return i; },
     stageInfo() {
       const i = C.stage(), n = C.sum(), cur = H.STAGES[i], next = H.STAGES[i + 1];
       return { i, name: cur.name, text: cur.text, next, into: n - cur.need, need: next ? next.need - cur.need : 0, t: next ? (n - cur.need) / (next.need - cur.need) : 1 };
     },
-    mult: () => 1 + 0.05 * Object.keys(H.S.badges).length + 0.02 * (H.level(H.S.xp).level - 1) + 0.1 * C.stage(),
+    mult: () => 1 + 0.05 * Object.keys(H.S.badges).length + 0.02 * (H.level(H.S.xp).level - 1) + 0.1 * C.stage() + 0.1 * (H.S.upg.income || 0),
     gameMult: id => 1 + 0.1 * (H.gameLevel(H.S.games[id] ? H.S.games[id].xp : 0).level - 1),
     rate: id => by(id).rate * C.level(id) * C.gameMult(id) * C.mult(),
     boosted: (id, now) => (H.S.city.boost[id] || 0) > (now || Date.now()),
-    total: () => H.CITY.reduce((s, b) => s + C.rate(b.id) * (C.boosted(b.id) ? 2 : 1), 0),
+    total: () => H.CITY.reduce((s, b) => s + C.rate(b.id) * (C.boosted(b.id) ? C.boostX() : 1), 0),
     capHours: () => CAP_H[H.S.upg.cap || 0],
     accrue(now) {
       const c = H.S.city;
@@ -58,7 +59,7 @@
       for (const b of H.CITY) {
         const r = C.rate(b.id); if (!r) continue;
         const boostMs = Math.max(0, Math.min(now, c.boost[b.id] || 0) - from);
-        sum += r * (dt + Math.min(boostMs, dt)) / 60000;
+        sum += r * (dt + (C.boostX() - 1) * Math.min(boostMs, dt)) / 60000;
       }
       c.last = now; c.frac += sum;
       const whole = Math.floor(c.frac);
@@ -84,7 +85,7 @@
     for (const d of dyn) {
       if (d.btn) d.btn.classList.toggle('poor', H.S.coins < d.cost);
       const left = (H.S.city.boost[d.id] || 0) - now;
-      d.boost.textContent = left > 0 ? `⚡ 2× ještě ${H.fmtTime(left / 1000)}` : '';
+      d.boost.textContent = left > 0 ? `⚡ ${String(C.boostX()).replace('.', ',')}× ještě ${H.fmtTime(left / 1000)}` : '';
     }
   };
   H.renderCity = main => {
@@ -98,7 +99,7 @@
           el('div', { class: 'xpbar', role: 'img', 'aria-label': `Postup k dalšímu stupni: ${si.into} z ${si.need}` }, el('span', { style: `width:${Math.round(si.t * 100)}%` })))
           : el('p', { class: 'muted', text: 'Dosáhl jsi nejvyššího stupně.' }),
         el('div', { class: 'big', text: perMin(total) }),
-        el('p', { class: 'muted', text: `Násobič ×${C.mult().toFixed(2).replace('.', ',')} (stupeň, odznaky, level) · mimo appku vydělává nejdéle ${C.capHours()} h` })),
+        el('p', { class: 'muted', text: `Násobič ×${C.mult().toFixed(2).replace('.', ',')} (stupeň, vylepšení, odznaky, level) · mimo appku vydělává nejdéle ${C.capHours()} h` })),
       built ? null : el('p', { class: 'empty', text: 'Osada je zatím prázdná. Každá hra, kterou si aspoň jednou zahraješ, ti tu odemkne jednu budovu. Budovy pak samy vydělávají mince.' }),
       el('h2', { text: 'Budovy' }),
       el('div', { class: 'list' }, H.CITY.map(b => {
@@ -130,7 +131,8 @@
       el('h2', { text: 'Jak to funguje' }),
       el('div', { class: 'card' },
         el('p', { text: 'Budova vydělává sama, i když appku zavřeš. Hraním jí pomáháš třemi způsoby:' }),
-        el('p', { text: '⚡ Výhra ve hře zapne její budově na 10 minut dvojnásobný výdělek.' }),
+        el('p', { text: `⚡ Výhra ve hře zapne její budově na ${C.boostMs() / 60000} minut ${String(C.boostX()).replace('.', ',')}× výdělek.` }),
+        el('p', { text: '🛍️ V Obchodě najdeš vylepšení města (vyšší nájmy, silnější a delší bonus, levnější stavby) a styly domů, které mění vzhled sídla.' }),
         el('p', { text: '📈 Vyšší úroveň hry zvedá strop úrovně budovy a přidává 10 % k výdělku.' }),
         el('p', { text: '🌍 Součet úrovní všech budov posouvá sídlo na další stupeň: z osady přes město a planetu až ke galaxiím. Každý stupeň přidá 10 % k výdělku.' }),
         el('p', { text: '🏅 Každý odznak přidá 5 % k výdělku celého města, každý level hráče 2 %.' }),

@@ -4,7 +4,7 @@
   const { el } = H;
   const W = 15, Hh = 19, SPEED = [170, 125, 95, 68];
   H.register({
-    id: 'had', name: 'Had', icon: '🐍', grad: ['#15803d', '#166534'],
+    id: 'had', name: 'Had', icon: '🐍', grad: ['#15803d', '#166534'], realtime: true,
     desc: 'Jez jablka a nenaraz',
     diffNames: ['Pomalý', 'Svižný', 'Rychlý', 'Šílený'],
     variant: { name: 'Portály', desc: 'Zdi nezabíjejí. Had vyjede na druhé straně.', level: 2 },
@@ -16,7 +16,7 @@
       const cv = el('canvas', { class: 'board cv', role: 'img', 'aria-label': 'Herní plocha hada' });
       root.classList.add('swipe');
       root.append(info, status, cv);
-      const cell = Math.floor(Math.min(root.clientWidth || 340, 440) / W), dpr = window.devicePixelRatio || 1;
+      const cell = Math.floor(Math.min(root.clientWidth || 340, 440, (innerHeight - 150) * W / Hh) / W), dpr = window.devicePixelRatio || 1;
       cv.width = W * cell * dpr; cv.height = Hh * cell * dpr; cv.style.width = W * cell + 'px'; cv.style.height = Hh * cell + 'px';
       const x = cv.getContext('2d'); x.scale(dpr, dpr);
       const acc = getComputedStyle(document.documentElement).getPropertyValue('--acc-text').trim() || '#8b5cf6';
@@ -44,7 +44,7 @@
         ctx.end({ result: 'done', score, xp: Math.min(250, score * (2 + ctx.diff) + 5), flags: { snake30: score >= 30 } });
       };
       const step = () => {
-        if (over || document.hidden || !dir) return;
+        if (over || document.hidden || ctx.paused || !dir) return;
         if (queue.length) { const d = queue.shift(); if (d[0] !== -dir[0] || d[1] !== -dir[1]) dir = d; }
         let nx = snake[0][0] + dir[0], ny = snake[0][1] + dir[1];
         if (ctx.variant) { nx = (nx + W) % W; ny = (ny + Hh) % Hh; }

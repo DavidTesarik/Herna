@@ -98,7 +98,7 @@
         }
         ctx.save(st); paint();
       }
-      function clock() { tick = setInterval(() => { if (document.hidden || over) return; st.time++; if (st.time % 5 === 0) ctx.save(st); info.textContent = `⏱ ${H.fmtTime(st.time)}   Chyby ${st.miss}${ctx.variant ? '/3' : ''}`; }, 1000); }
+      function clock() { tick = setInterval(() => { if (document.hidden || over || ctx.paused) return; st.time++; if (st.time % 5 === 0) ctx.save(st); info.textContent = `⏱ ${H.fmtTime(st.time)}   Chyby ${st.miss}${ctx.variant ? '/3' : ''}`; }, 1000); }
       const key = e => {
         if (over || document.querySelector('.modal')) return;
         if (e.key >= '1' && e.key <= '9') put(+e.key);

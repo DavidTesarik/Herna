@@ -1,4 +1,4 @@
-const VERSION = 'v3';
+const VERSION = 'v6';
 const CACHE = `herna-${VERSION}`;
 const ASSETS = [
   './',
@@ -19,6 +19,8 @@ const ASSETS = [
   './js/games/lode.js',
   './js/games/dama.js',
   './js/city.js',
+  './js/fx.js',
+  './js/cards.js',
   './js/scene.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

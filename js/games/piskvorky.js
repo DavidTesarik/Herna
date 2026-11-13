@@ -1,9 +1,9 @@
 'use strict';
-/* Piškvorky: 3×3 (minimax) a 5 v řadě na 9×9 (heuristika + hledání) */
+/* Piškvorky: 3×3 (minimax) a 5 v řadě na 25×25 (heuristika + hledání), velké pole se posouvá prstem */
 (function () {
   const { el } = H;
   const LINES3 = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-  const N = 9, WINS5 = [], BYCELL = Array.from({ length: N * N }, () => []);
+  const N = 25, WINS5 = [], BYCELL = Array.from({ length: N * N }, () => []);
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
     const er = r + dr * 4, ec = c + dc * 4;
     if (er < 0 || er >= N || ec < 0 || ec >= N) continue;
@@ -111,22 +111,25 @@
   };
 
   H.register({
-    id: 'piskvorky', name: 'Piškvorky', icon: '❌', grad: ['#4338ca', '#7c3aed'], vsAI: true, saveable: true,
+    id: 'piskvorky', name: 'Piškvorky', icon: '❌', grad: ['#4338ca', '#7c3aed'], vsAI: true, saveable: true, pvp: true,
     desc: 'Klasika 3×3 nebo pět v řadě',
-    modes: [{ id: '3', name: '3×3' }, { id: '5', name: '5 v řadě' }],
+    modes: [{ id: '3', name: '3×3' }, { id: '5', name: '5 v řadě (25×25)' }],
     variant: { name: 'Zmizík', desc: 'Jen pro 3×3: každý má nejvýš 3 značky, čtvrtá smaže tu nejstarší. Remíza neexistuje.', level: 2 },
-    help: 'Spoj své značky do řady dřív než počítač. V režimu 3×3 stačí tři, v režimu 5 v řadě pět (vodorovně, svisle i šikmo).',
+    help: 'Spoj své značky do řady dřív než počítač. V režimu 3×3 stačí tři, v režimu 5 v řadě pět (vodorovně, svisle i šikmo). Velké pole 25×25 posouváš tažením prstu.',
     start(root, ctx) {
       const five = ctx.mode === '5', size = five ? N : 3, vanish = ctx.variant && !five;
       const sk = ctx.skin('pieces');
-      let st = ctx.saved || { b: Array(size * size).fill(0), q: { 1: [], 2: [] }, turn: ctx.aiFirst ? 2 : 1, hist: [], undos: ctx.undos, last: -1 };
+      const sv = ctx.saved && ctx.saved.b.length === size * size ? ctx.saved : null;
+      let st = sv || { b: Array(size * size).fill(0), q: { 1: [], 2: [] }, turn: ctx.aiFirst ? 2 : 1, hist: [], undos: ctx.undos, last: -1 };
       let over = false, timer = 0;
+      const P = !!ctx.pvp, turnMsg = () => `Na tahu je hráč ${st.turn} (${st.turn === 1 ? sk.a : sk.b})`;
       const status = el('p', { class: 'g-status', role: 'status' });
       const board = el('div', { class: 'board pv' + (five ? ' pv5' : ''), style: `--n:${size}`, role: 'grid', 'aria-label': 'Hrací pole' });
       const cells = st.b.map((_, i) => el('button', { class: 'cell', onclick: () => human(i) }));
       board.append(...cells);
       const undoBtn = el('button', { class: 'btn ghost', onclick: undo });
-      root.append(status, board, el('div', { class: 'g-actions' }, ctx.undosMax ? undoBtn : null));
+      root.append(status, five ? H.pan(board) : board, el('div', { class: 'g-actions' }, ctx.undosMax ? undoBtn : null));
+      const show = i => { if (five && i >= 0 && cells[i].scrollIntoView) cells[i].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: H.motionOK() ? 'smooth' : 'auto' }); };
 
       const paint = (winLine) => {
         cells.forEach((c, i) => {
@@ -135,11 +138,11 @@
           c.style.color = v ? (v === 1 ? sk.ca : sk.cb) : '';
           c.className = 'cell' + (v ? ' filled' : '') + (i === st.last ? ' last' : '') + (winLine && winLine.includes(i) ? ' winc' : '') +
             (vanish && v && st.q[v].length === 3 && st.q[v][0] === i ? ' fading' : '');
-          c.disabled = over || !!v || st.turn !== 1;
-          c.setAttribute('aria-label', `Řádek ${((i / size) | 0) + 1}, sloupec ${i % size + 1}: ` + (v ? (v === 1 ? 'tvoje značka' : 'značka počítače') : 'prázdné'));
+          c.disabled = over || !!v || (!P && st.turn !== 1);
+          c.setAttribute('aria-label', `Řádek ${((i / size) | 0) + 1}, sloupec ${i % size + 1}: ` + (v ? (P ? 'značka hráče ' + v : v === 1 ? 'tvoje značka' : 'značka počítače') : 'prázdné'));
         });
         undoBtn.textContent = `↩ Vrátit tah (${st.undos})`;
-        undoBtn.disabled = over || !st.undos || st.turn !== 1 || st.hist.length < 2;
+        undoBtn.disabled = over || !st.undos || (P ? !st.hist.length : st.turn !== 1 || st.hist.length < 2);
       };
       const say = t => { status.textContent = t; };
       const place = (i, p) => {
@@ -152,26 +155,31 @@
         st.turn = 3 - p;
         ctx.save(st);
         paint();
-        if (st.turn === 2) aiTurn(); else say('Jsi na tahu (' + sk.a + ')');
+        if (P) say(turnMsg()); else if (st.turn === 2) aiTurn(); else say('Jsi na tahu (' + sk.a + ')');
       };
-      const finish = (res, w) => { over = true; paint(w); say(res === 'win' ? 'Vyhrál jsi!' : res === 'loss' ? 'Počítač vyhrál.' : 'Remíza.'); ctx.end({ result: res }); };
-      const human = i => { if (over || st.turn !== 1 || st.b[i]) return; H.sfx('place'); H.buzz(8); place(i, 1); };
+      const finish = (res, w) => {
+        over = true; paint(w);
+        if (P) { const win = res === 'win' ? 1 : res === 'loss' ? 2 : 0; say(win ? `Vyhrál hráč ${win}!` : 'Remíza.'); return ctx.end({ result: 'pvp', winner: win }); }
+        say(res === 'win' ? 'Vyhrál jsi!' : res === 'loss' ? 'Počítač vyhrál.' : 'Remíza.'); ctx.end({ result: res });
+      };
+      const human = i => { if (over || (!P && st.turn !== 1) || st.b[i]) return; H.sfx('place'); H.buzz(8); place(i, P ? st.turn : 1); };
       const aiTurn = () => {
         say('Počítač přemýšlí…'); paint();
         timer = setTimeout(() => {
           const i = five ? ai5(st.b, ctx.diff) : ai3(st, ctx.diff, vanish);
-          H.sfx('tap'); place(i, 2);
+          H.sfx('tap'); place(i, 2); show(i);
         }, 420);
       };
       function undo() {
-        if (over || !st.undos || st.turn !== 1 || st.hist.length < 2) return;
+        if (over || !st.undos || (P ? !st.hist.length : st.turn !== 1 || st.hist.length < 2)) return;
         let snap = null;
-        for (let k = 0; k < 2 && st.hist.length; k++) snap = JSON.parse(st.hist.pop());
+        for (let k = 0; k < (P ? 1 : 2) && st.hist.length; k++) snap = JSON.parse(st.hist.pop());
         st.b = snap.b; st.q = snap.q; st.last = snap.last; st.undos--;
-        ctx.save(st); paint(); say('Tah vrácen. Jsi na tahu.');
+        if (P) st.turn = 3 - st.turn;
+        ctx.save(st); paint(); say(P ? 'Tah vrácen. ' + turnMsg() : 'Tah vrácen. Jsi na tahu.');
       }
       paint();
-      if (st.turn === 2) aiTurn(); else say(ctx.saved ? 'Pokračuješ v rozehrané hře. Jsi na tahu.' : 'Začínáš (' + sk.a + ')');
+      if (P) say((sv ? 'Pokračujete. ' : '') + turnMsg()); else if (st.turn === 2) aiTurn(); else say(sv ? 'Pokračuješ v rozehrané hře. Jsi na tahu.' : 'Začínáš (' + sk.a + ')');
       return { destroy() { clearTimeout(timer); over = true; } };
     }
   });
