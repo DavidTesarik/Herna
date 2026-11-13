@@ -2,7 +2,7 @@
 /* Herna — obrazovky, průběh her, odměny */
 (function () {
   const { el } = H;
-  const VERSION = '2.1.1';
+  const VERSION = '2.1.2';
   const $ = s => document.querySelector(s);
   let S, view = 'home', cur = null, menuOpen = false; // cur = právě otevřená hra
 
