@@ -2,7 +2,7 @@
 /* Herna — obrazovky, průběh her, odměny */
 (function () {
   const { el } = H;
-  const VERSION = '2.1.0';
+  const VERSION = '2.1.1';
   const $ = s => document.querySelector(s);
   let S, view = 'home', cur = null, menuOpen = false; // cur = právě otevřená hra
 
@@ -446,6 +446,18 @@
     }, 350);
     setTimeout(() => { if (cur === me && me.run === run && !menuOpen) menu('end'); }, good ? 1500 : 1100);
   };
+
+  /* ---------- Skutečná výška displeje ---------- */
+  const fitHeight = () => {
+    const d = document.documentElement, standalone = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    let h = Math.max(window.innerHeight || 0, d.clientHeight || 0);
+    if (standalone && ios && window.screen) { const portrait = !window.matchMedia || matchMedia('(orientation: portrait)').matches; h = Math.max(h, portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width)); }
+    if (h > 0) d.style.setProperty('--app-h', h + 'px');
+  };
+  fitHeight();
+  for (const ev of ['resize', 'orientationchange', 'pageshow']) window.addEventListener(ev, () => { fitHeight(); setTimeout(fitHeight, 250); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fitHeight);
 
   /* ---------- Start ---------- */
   H.load(); S = H.S;
