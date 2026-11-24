@@ -7,14 +7,16 @@ Sbírka rychlých her do kapsy. Běží celá v telefonu, i bez internetu, bez �
 - **Piškvorky** – 3×3 nebo 5 v řadě na posuvném poli 25×25, varianta Zmizík
 - **Čtyři v řadě** – varianta Překážky
 - **Závod** – tři pruhy, překážky, mince a soupeř řízený počítačem, ovládání dvěma šipkami dole, varianta Noční jízda
-- **Miny** – klasická pole, obří posuvná pole XL až XXXXL (24×40) i vlastní velikost a počet min; hra se snaží postavit pole řešitelné bez hádání a u obřích a vlastních polí případně ubere min; varianta Na čas
+- **Miny** – klasická pole, obří posuvná pole XL až XXXXL (24×40), gigantická pole Obr 32×50, Titán 40×64, Kolos 50×80 a Gigant 64×100 i vlastní velikost až 64×100; hra se snaží postavit pole řešitelné bez hádání; ťuknutím na odkryté číslo se všemi vlajkami odkryješ zbytek sousedů (akord); varianta Na čas
 - **Pexeso** proti počítači – 20 až 80 karet, kreslené sady Antické Řecko a Sportovci
 - **2048** – varianta Mini 3×3
 - **Had** – varianta Portály
-- **Sudoku** – generované zadání s jediným řešením, poznámky, varianta Tři životy
+- **Sudoku** – 9×9 i 16×16 (bloky 4×4, symboly 0–F), generované zadání s jediným řešením; obtížnost určují techniky, které zadání vyžaduje (Lehké: jen jednoduché tahy, Střední: zamčení kandidáti a dvojice, Těžké: trojice a X-Wing, Ďábelské: Swordfish, XY-Wing a víc); po výhře hra řekne, jakou nejtěžší techniku zadání chtělo; poznámky, varianta Tři životy
 - **Slovo** – hádání českého slova z pěti písmen bez diakritiky, varianta Přísný režim
 - **Lodě** proti počítači – vlastní rozmístění flotily na poli 10×10, kreslené lodě, varianta Velké moře 12×12
 - **Dáma** proti počítači – varianta Dobrovolné braní
+
+**Učebnice:** záložka v dolní liště a tlačítko 📖 Učebnice v menu každé hry. Postupy, triky a strategie od základů po mistrovské finty, s obrázky pozic, pro Sudoku, Miny, Dámu, Piškvorky, Čtyři v řadě, Lodě, Slovo, 2048, Pexeso a Hada.
 
 **Ovládání her:** hra zabírá celou obrazovku. Před hrou, po ní a po ťuknutí na tlačítko pauzy vpravo nahoře se ukáže rychlé menu (režim, obtížnost, varianta, návod, pokračovat, nová hra, zpět na hry).
 
@@ -26,11 +28,9 @@ Sbírka rychlých her do kapsy. Běží celá v telefonu, i bez internetu, bez �
 
 **Motivy appky:** devět motivů od Základního po Mýtický. Lepší motivy přidávají efekty: částice na pozadí (bublinky, listí, jiskry, hvězdy, žhavé uhlíky), zářící a duhové obrysy, odlesky dlaždic a jiskry při ťuknutí. Před koupí si motiv můžeš na 10 sekund vyzkoušet. Efekty se vypínají s animacemi v Nastavení a během her neběží.
 
-**Vylepšení města a styl domů:** hlavní část Obchodu. Vylepšení zvedají výdělek budov, sílu a délku bonusu po výhře, zlevňují stavby a prodlužují výdělek mimo appku. Sedm stylů domů (Klasika, Cihlové, Severské, Pouštní, Cukrové, Kyberpunk, Zlaté město) mění vzhled obrázku sídla.
+**Obchod:** jen kosmetika a vylepšení her. Motivy, pozadí, oslavy, karty do pexesa, kameny a auta mění vzhled; Vylepšení her přidávají vracení tahu, štít a magnet v Závodě, detektor min a vyšší strop bonusu za sérii. Mince se dají získat jen hraním: odměna za hru, denní výzvy a bonus za nový level.
 
 **Série výher:** každá další výhra po sobě (napříč hrami proti počítači, Minami, Sudoku a Slovem) přidá 5 % k odměně, nejvýš 50 % (strop jde vylepšit na 100 %). Prohra sérii vynuluje, remíza a hry na skóre ji nemění.
-
-**Město:** každá hra odemyká jednu budovu, která sama vydělává mince (i když je appka zavřená, nejdéle 8 hodin; strop jde vylepšit). Výhra zapne budově na 10 minut dvojnásobný výdělek, úroveň hry zvedá strop úrovně budovy a odznaky přidávají trvalý násobič. Sídlo se podle součtu úrovní budov viditelně rozrůstá ve dvanácti stupních: Osada, Vesnice, Městečko, Město, Velkoměsto, Metropole, Země, Planeta, Sluneční soustava, Galaxie, Vesmír a Mnohovesmír. Každý stupeň má vlastní obrázek a přidá 10 % k výdělku.
 
 Čtyři obtížnosti (Lehká, Střední, Těžká, Nemožná), XP a level hráče, vlastní úroveň každé hry (odemyká variantu), mince, obchod se skiny a vylepšeními, denní výzvy, odznaky a statistiky. Rozehrané piškvorky, čtyři v řadě, miny, 2048, sudoku, slovo, lodě a dáma se samy ukládají a příště pokračuješ.
 

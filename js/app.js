@@ -2,7 +2,7 @@
 /* Herna — obrazovky, průběh her, odměny */
 (function () {
   const { el } = H;
-  const VERSION = '2.1.2';
+  const VERSION = '2.2.0';
   const $ = s => document.querySelector(s);
   let S, view = 'home', cur = null, menuOpen = false; // cur = právě otevřená hra
 
@@ -106,7 +106,7 @@
   const buy = (name, price, fn) => {
     if (S.coins < price) return H.toast(`Chybí ti ${price - S.coins} mincí.`);
     confirmBox('Koupit?', `${name} za ${H.fmt(price)} mincí. Zůstane ti ${H.fmt(S.coins - price)} mincí.`, 'Koupit', () => {
-      H.city.accrue(Date.now()); S.coins -= price; fn(); checkBadges([]); H.save(); H.sfx('coin'); applyTheme(); render();
+      S.coins -= price; fn(); checkBadges([]); H.save(); H.sfx('coin'); applyTheme(); render();
     });
   };
   const renderShop = main => {
@@ -121,12 +121,11 @@
     })));
     const skins = cat => {
       const c = H.SKINS[cat];
-      main.append(el('h2', { text: c.name }), el('div', { class: 'skins' + (cat === 'city' ? ' two' : '') }, c.items.map(it => {
+      main.append(el('h2', { text: c.name }), el('div', { class: 'skins' }, c.items.map(it => {
         const own = S.owned[cat].includes(it.id), act = S.active[cat] === it.id;
         const prev = cat === 'bg' || cat === 'win' ? el('span', { class: 'swe', text: it.sw })
           : cat === 'cards' && it.art ? el('span', { class: 'swc', html: H.cardFace(it, 0) + H.cardFace(it, 3) })
           : cat === 'theme' ? el('span', { class: 'sw', style: `background:${it.sw}` })
-          : cat === 'city' ? el('span', { class: 'sthumb', html: H.scene(3, .6, '', it.id) })
             : cat === 'pieces' ? el('span', { class: 'swt' }, el('b', { style: `color:${it.ca}`, text: it.a }), el('b', { style: `color:${it.cb}`, text: it.b }))
               : cat === 'car' ? el('span', { class: 'sw car', style: `background:${it.c};border-color:${it.s}` })
                 : el('span', { class: 'swt', text: Array.from(it.set).slice(0, 2).join('') });
@@ -149,7 +148,7 @@
       })));
       if (cat === 'win') main.append(el('button', { class: 'btn small ghost', text: 'Přehrát aktivní oslavu', onclick: () => H.confetti() }));
     };
-    upgrades('Vylepšení města', 'city'); skins('city'); skins('theme'); skins('bg'); skins('win'); upgrades('Vylepšení her', 'game'); skins('cards'); skins('pieces'); skins('car');
+    skins('theme'); skins('bg'); skins('win'); upgrades('Vylepšení her', 'game'); skins('cards'); skins('pieces'); skins('car');
   };
 
   /* ---------- Profil a statistiky ---------- */
@@ -203,7 +202,7 @@
         const d = JSON.parse(r.result);
         if (!H.validate(d)) throw new Error('bad');
         confirmBox('Nahradit data?', `Záloha obsahuje level ${H.level(d.xp).level} a ${d.coins} mincí. Současný postup se přepíše.`, 'Nahradit', () => {
-          H.S = S = H.merge(d); S.city.last = Date.now(); H.save(); applyTheme(); render(); H.toast('Záloha načtena.');
+          H.S = S = H.merge(d); H.save(); applyTheme(); render(); H.toast('Záloha načtena.');
         });
       } catch (e) { H.toast('Tenhle soubor není záloha Herny.'); }
     };
@@ -227,17 +226,23 @@
       el('h2', { text: 'Data' }), el('div', { class: 'list' },
         el('div', { class: 'row' }, el('div', { class: 'rmid' }, el('strong', { text: 'Záloha' }), el('span', { class: 'muted', text: 'Postup je uložený jen v tomhle telefonu. Zálohuj před výměnou telefonu.' })),
           el('div', { class: 'rbtns' }, el('button', { class: 'btn small', text: 'Exportovat', onclick: exportData }), el('button', { class: 'btn small', text: 'Importovat', onclick: () => file.click() }), file)),
-        el('div', { class: 'row' }, el('div', { class: 'rmid' }, el('strong', { text: 'Smazat všechna data' }), el('span', { class: 'muted', text: 'Level, mince, město, skiny, statistiky i rozehrané hry.' })),
-          el('button', { class: 'btn small danger', text: 'Smazat', onclick: () => H.modal({ title: 'Smazat všechno?', body: el('p', { text: 'Přijdeš o level, mince, město, skiny, statistiky i rozehrané hry. Nejde to vrátit, pokud nemáš zálohu.' }),
-            actions: [{ label: 'Zrušit' }, { label: 'Nejdřív exportovat', fn: () => { exportData(); return false; } }, { label: 'Smazat vše', danger: true, fn: () => { H.reset(); S = H.S; S.city.last = Date.now(); applyTheme(); go('home'); H.toast('Data smazána.'); } }] }) }))),
+        el('div', { class: 'row' }, el('div', { class: 'rmid' }, el('strong', { text: 'Smazat všechna data' }), el('span', { class: 'muted', text: 'Level, mince, skiny, vylepšení, statistiky i rozehrané hry.' })),
+          el('button', { class: 'btn small danger', text: 'Smazat', onclick: () => H.modal({ title: 'Smazat všechno?', body: el('p', { text: 'Přijdeš o level, mince, skiny, vylepšení, statistiky i rozehrané hry. Nejde to vrátit, pokud nemáš zálohu.' }),
+            actions: [{ label: 'Zrušit' }, { label: 'Nejdřív exportovat', fn: () => { exportData(); return false; } }, { label: 'Smazat vše', danger: true, fn: () => { H.reset(); S = H.S; applyTheme(); go('home'); H.toast('Data smazána.'); } }] }) }))),
       el('h2', { text: 'O appce' }), el('div', { class: 'card' },
         el('p', { text: 'Herna je sbírka rychlých her, která běží celá v tvém telefonu, i bez internetu.' }),
         el('p', { text: 'Žádný účet, žádné reklamy, žádné sledování. Appka nic neposílá na server a nenačítá nic od třetích stran. Postup se ukládá jen do úložiště prohlížeče v tomto zařízení.' }),
         el('p', { class: 'muted', text: 'Verze ' + VERSION })));
   };
 
+  /* ---------- Učebnice (obsah dodává js/ucebnice.js) ---------- */
+  const renderLearn = main => {
+    if (H.renderLibrary) H.renderLibrary(main);
+    else main.append(el('h1', { text: 'Učebnice' }), el('p', { class: 'empty', text: 'Učebnice se načítá. Zkus to prosím za chvíli znovu.' }));
+  };
+
   /* ---------- Navigace ---------- */
-  const VIEWS = { home: ['home', 'Hry', renderHome], city: ['city', 'Město', m => H.renderCity(m)], shop: ['shop', 'Obchod', renderShop], profile: ['profile', 'Profil', renderProfile], settings: ['settings', 'Nastavení', renderSettings] };
+  const VIEWS = { home: ['home', 'Hry', renderHome], learn: ['book', 'Učebnice', renderLearn], shop: ['shop', 'Obchod', renderShop], profile: ['profile', 'Profil', renderProfile], settings: ['settings', 'Nastavení', renderSettings] };
   const render = () => {
     S = H.S;
     const main = $('#view'); main.textContent = ''; main.className = 'view v-' + view;
@@ -353,6 +358,7 @@
     }
     if (hasOpts) parts.push(kind === 'start' ? optsBox : el('details', { class: 'mdet' }, el('summary', { text: 'Nastavení hry' }), optsBox, kind === 'pause' ? el('p', { class: 'muted', text: 'Změny se projeví v nové hře.' }) : null));
     parts.push(el('details', { class: 'mdet', open: !S.seenHelp[g.id] }, el('summary', { text: 'Jak hrát' }), el('p', { text: g.help })));
+    if (H.BOOKS && H.BOOKS[g.id] && H.openBook) parts.push(el('button', { class: 'btn mbook', text: '📖 Učebnice', onclick: () => H.openBook(g.id) }));
     parts.push(btns);
     parts.push(el('button', { class: 'btn ghost mback', onclick: () => {
       const keep = me.started && !me.ended && g.saveable && S.saves[g.id];
@@ -372,15 +378,12 @@
       first: all.some(s => s.wins > 0), streak5: all.some(s => s.bestStreak >= 5), streak10: all.some(s => s.bestStreak >= 10),
       all: H.games.every(g => S.games[g.id] && S.games[g.id].played), p50: played >= 50, p250: played >= 250,
       lvl10: H.level(S.xp).level >= 10, rich: S.coins >= 2000, collector: owned >= 8, quest10: S.questsDone >= 10,
-      city1: H.CITY.some(b => H.city.level(b.id)), cityAll: H.CITY.every(b => H.city.level(b.id)),
-      city100: H.CITY.reduce((a, b) => a + H.city.level(b.id), 0) >= 100, earn100k: S.city.earned >= 100000, streak7: S.bestWin >= 7,
-      metro: H.city.stage() >= 5, planet: H.city.stage() >= 7, galaxy: H.city.stage() >= 9
+      streak7: S.bestWin >= 7
     };
     for (const b of H.BADGES) if (!S.badges[b.id] && (tests[b.id] || (out.flags && out.flags[b.id]))) { S.badges[b.id] = H.today(); out.push(`${b.icon} Nový odznak: ${b.name}`); }
   };
   const onEndPvp = (me, res) => {
     const g = me.g, st = H.gstat(g.id), run = me.run, w = res.winner;
-    H.city.accrue(Date.now());
     delete S.saves[g.id];
     st.played++;
     const xp = 10, coins = 5;
@@ -394,8 +397,7 @@
   };
   const onEnd = (me, res) => {
     if (res.result === 'pvp') return onEndPvp(me, res);
-    const { g, diff, variant } = me, st = H.gstat(g.id), r = res.result, extras = [], cityX = [];
-    H.city.accrue(Date.now());
+    const { g, diff, variant } = me, st = H.gstat(g.id), r = res.result, extras = [];
     delete S.saves[g.id];
     st.played++;
     const bd = st.byDiff[diff] || (st.byDiff[diff] = { p: 0, w: 0 }); bd.p++;
@@ -430,16 +432,12 @@
       else if (q.game === g.id && q.type === 'score') { if (g.quest.kind === 'win') { if (r === 'win') q.prog = 1; } else q.prog = Math.max(q.prog, res.score || 0); }
       if (q.prog >= q.n) { q.done = true; coins += q.reward; S.questsDone++; extras.push(`📅 Výzva splněna: +${q.reward} mincí`); }
     }
-    const bld = H.city.building(g.id), cr = H.city.total();
-    if (cr > 0) { const cb = Math.round(cr * ((r === 'win' ? 5 : r === 'loss' ? 1 : 3) + (r === 'loss' ? 0 : S.upg.winBonus || 0))); if (cb) { coins += cb; cityX.push(`🏙️ Bonus města: +${H.fmt(cb)} mincí`); } }
-    if ((r === 'win' || (r === 'done' && xp >= 25)) && H.city.level(g.id) > 0) { S.city.boost[g.id] = Date.now() + H.city.boostMs(); cityX.push(`⚡ ${bld.name}: ${String(H.city.boostX()).replace('.', ',')}× výdělek na ${H.city.boostMs() / 60000} minut`); }
-    if (st.played === 1) cityX.push(`🏗️ Ve městě teď můžeš postavit: ${bld.name}`);
     S.coins += coins;
     extras.flags = Object.assign({ imp: r === 'win' && diff === 3 && g.vsAI, hard: r === 'win' && diff >= 2 && g.vsAI }, res.flags || {});
     checkBadges(extras);
     H.save();
     const good = r === 'win' || (r === 'done' && extras.length > (hot ? 1 : 0)), run = me.run;
-    me.result = { r, xp, coins, G1, extras: extras.concat(cityX), res, hot };
+    me.result = { r, xp, coins, G1, extras, res, hot };
     setTimeout(() => {
       if (cur !== me || me.run !== run) return;
       if (good) { H.sfx(L1 > L0 ? 'level' : 'win'); H.confetti(); H.buzz([30, 40, 60]); } else if (r === 'loss') H.sfx('lose'); else H.sfx('match');
@@ -471,27 +469,10 @@
     const had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) H.toast('Je připravená nová verze.', { label: 'Obnovit', fn: () => location.reload() }); });
   }
-  S.city.stage = Math.max(S.city.stage || 0, H.city.stage());
-  const away = S.city.last ? Date.now() - S.city.last : 0, gained = H.city.accrue(Date.now());
   H.save();
   document.addEventListener('dblclick', e => e.preventDefault());
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && view === 'game' && cur && cur.inst && !menuOpen && !document.querySelector('.modal')) pause(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && cur && cur.g.realtime && cur.started && !cur.ended && !menuOpen) pause(); });
   render();
-  if (gained >= 1 && away > 120000) {
-    const h = Math.min(away, H.city.capHours() * 3600000) / 3600000;
-    H.modal({ title: '🏙️ Vítej zpátky', body: [el('p', { class: 'big', text: `+${H.fmt(gained)} 🪙` }),
-      el('p', { text: `Tolik město vydělalo, zatímco jsi byl pryč (${h < 1 ? Math.round(h * 60) + ' min' : h.toFixed(1).replace('.', ',') + ' h'}).` }),
-      away > H.city.capHours() * 3600000 ? el('p', { class: 'muted', text: `Mimo appku se počítá nejvýš ${H.city.capHours()} hodin. Strop zvedneš v Obchodě vylepšením Městský sklad.` }) : null],
-      actions: [{ label: 'Super', primary: true }] });
-  }
-  let ticks = 0;
-  setInterval(() => {
-    if (document.hidden) return;
-    const got = H.city.accrue(Date.now());
-    if (got) { const c = $('#coinsTop'); if (c) c.textContent = '🪙 ' + H.fmt(S.coins); }
-    if (view === 'city') H.cityTick();
-    if (++ticks % 15 === 0) { if (got || ticks % 60 === 0) { const out = []; checkBadges(out); if (out.length) { H.toast(out[0]); H.sfx('level'); } } H.save(); }
-  }, 1000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) H.save(); else H.city.accrue(Date.now()); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) H.save(); });
 })();

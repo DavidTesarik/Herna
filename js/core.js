@@ -46,7 +46,7 @@
     lode: '<path d="M3 15h18l-2.6 5.5H5.6zM12 15V4M12 5l6.5 7H12"/>',
     dama: '<path d="M4 19.5h16M5.2 16l-1.2-8.5 4.6 4L12 5l3.4 6.5 4.6-4L18.8 16z"/>',
     home: '<path d="M7.5 8.5h9a4.5 4.5 0 0 1 4.5 4.5v1.2a3 3 0 0 1-5.6 1.6l-.5-.8H9.1l-.5.8A3 3 0 0 1 3 14.2V13a4.5 4.5 0 0 1 4.5-4.5zM8 11.5v3M6.5 13h3"/><circle cx="16.5" cy="13" r="1" fill="currentColor"/>',
-    city: '<path d="M3 20.5h18M4.5 20.5V10l5-2.5v13M9.5 20.5V4.5l6 2.5v13.5M15.5 12l4 2v6.5"/>',
+    book: '<path d="M12 6.5C10 5 7.2 4.6 3.5 5v13.5c3.7-.4 6.5 0 8.5 1.5 2-1.5 4.8-1.9 8.5-1.5V5c-3.7-.4-6.5 0-8.5 1.5zM12 6.5V20"/>',
     shop: '<path d="M5 8.5h14l-1 12H6zM9 8.5V7a3 3 0 0 1 6 0v1.5"/>',
     profile: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20.5h7M10 17h4"/>',
     settings: '<path d="M4 7.5h8M17 7.5h3M4 16.5h3M12 16.5h8"/><circle cx="14.5" cy="7.5" r="2.3"/><circle cx="9.5" cy="16.5" r="2.3"/>',
@@ -66,77 +66,62 @@
   H.SKINS = {
     theme: { name: 'Motiv appky', items: [
       { id: 'neon', name: 'Fialová', price: 0, sw: '#6d28d9', rar: 'Základní', fx: '', about: ['Čistý vzhled bez efektů.'] },
-      { id: 'ocean', name: 'Oceán', price: 150, sw: '#1d4ed8', rar: 'Běžný', fx: '', about: ['Modrý přechod na pozadí.', 'Bublinky stoupající obrazovkou.'] },
-      { id: 'les', name: 'Les', price: 300, sw: '#047857', rar: 'Běžný', fx: '', about: ['Zelený přechod na pozadí.', 'Padající listí.'] },
-      { id: 'zapad', name: 'Západ slunce', price: 600, sw: '#be123c', rar: 'Vzácný', fx: 'glow', about: ['Teplý přechod na pozadí.', 'Vznášející se světélka.', 'Zářící tlačítka.'] },
-      { id: 'zlato', name: 'Zlato', price: 1500, sw: '#92400e', rar: 'Vzácný', fx: 'glow shine', about: ['Třpytivé jiskry na pozadí.', 'Odlesk přejíždějící přes dlaždice her.', 'Zlaté jiskry při ťuknutí na tlačítko.'] },
-      { id: 'kyber', name: 'Neon', price: 5000, sw: '#0e7490', rar: 'Epický', fx: 'glow border', about: ['Neonové světelné pruhy na pozadí.', 'Svítící obrysy karet a dlaždic.', 'Světelné kruhy při ťuknutí.'] },
-      { id: 'vesmir', name: 'Galaxie', price: 20000, sw: '#4338ca', rar: 'Legendární', fx: 'glow shine border', about: ['Hvězdné nebe s padajícími hvězdami.', 'Svítící obrysy a odlesky dlaždic.', 'Hvězdný prach při ťuknutí.'] },
-      { id: 'lava', name: 'Láva', price: 60000, sw: '#c2410c', rar: 'Legendární', fx: 'glow shine border pulse', about: ['Žhavé jiskry stoupající obrazovkou.', 'Pulzující záře tlačítek a karet.', 'Výbuch jisker při ťuknutí.'] },
-      { id: 'duha', name: 'Hologram', price: 200000, sw: '#a21caf', rar: 'Mýtický', fx: 'shine rainbow', about: ['Barevné světelné koule plující pozadím.', 'Duhové obrysy, které plynule mění barvu.', 'Odlesky dlaždic a duhový výbuch při ťuknutí.'] }
-    ] },
-    city: { name: 'Styl domů (obrázek sídla)', items: [
-      { id: 'klasik', name: 'Klasika', price: 0, rar: 'Základní' },
-      { id: 'cihla', name: 'Cihlové', price: 400, rar: 'Běžný' },
-      { id: 'sever', name: 'Severské', price: 1500, rar: 'Vzácný' },
-      { id: 'poust', name: 'Pouštní', price: 5000, rar: 'Vzácný' },
-      { id: 'cukr', name: 'Cukrové', price: 15000, rar: 'Epický' },
-      { id: 'kyber', name: 'Kyberpunk', price: 50000, rar: 'Legendární' },
-      { id: 'zlate', name: 'Zlaté město', price: 150000, rar: 'Mýtický' }
+      { id: 'ocean', name: 'Oceán', price: 400, sw: '#1d4ed8', rar: 'Běžný', fx: '', about: ['Modrý přechod na pozadí.', 'Bublinky stoupající obrazovkou.'] },
+      { id: 'les', name: 'Les', price: 600, sw: '#047857', rar: 'Běžný', fx: '', about: ['Zelený přechod na pozadí.', 'Padající listí.'] },
+      { id: 'zapad', name: 'Západ slunce', price: 850, sw: '#be123c', rar: 'Vzácný', fx: 'glow', about: ['Teplý přechod na pozadí.', 'Vznášející se světélka.', 'Zářící tlačítka.'] },
+      { id: 'zlato', name: 'Zlato', price: 1400, sw: '#92400e', rar: 'Vzácný', fx: 'glow shine', about: ['Třpytivé jiskry na pozadí.', 'Odlesk přejíždějící přes dlaždice her.', 'Zlaté jiskry při ťuknutí na tlačítko.'] },
+      { id: 'kyber', name: 'Neon', price: 2700, sw: '#0e7490', rar: 'Epický', fx: 'glow border', about: ['Neonové světelné pruhy na pozadí.', 'Svítící obrysy karet a dlaždic.', 'Světelné kruhy při ťuknutí.'] },
+      { id: 'vesmir', name: 'Galaxie', price: 5700, sw: '#4338ca', rar: 'Legendární', fx: 'glow shine border', about: ['Hvězdné nebe s padajícími hvězdami.', 'Svítící obrysy a odlesky dlaždic.', 'Hvězdný prach při ťuknutí.'] },
+      { id: 'lava', name: 'Láva', price: 10500, sw: '#c2410c', rar: 'Legendární', fx: 'glow shine border pulse', about: ['Žhavé jiskry stoupající obrazovkou.', 'Pulzující záře tlačítek a karet.', 'Výbuch jisker při ťuknutí.'] },
+      { id: 'duha', name: 'Hologram', price: 20000, sw: '#a21caf', rar: 'Mýtický', fx: 'shine rainbow', about: ['Barevné světelné koule plující pozadím.', 'Duhové obrysy, které plynule mění barvu.', 'Odlesky dlaždic a duhový výbuch při ťuknutí.'] }
     ] },
     pieces: { name: 'Kameny (piškvorky, čtyři v řadě, dáma)', items: [
       { id: 'klasik', name: 'Klasika', price: 0, a: '✕', b: '◯', ca: '#ef4444', cb: '#facc15' },
-      { id: 'neon', name: 'Neon', price: 200, a: '✦', b: '◉', ca: '#22d3ee', cb: '#f472b6' },
-      { id: 'zivly', name: 'Oheň a voda', price: 450, a: '🔥', b: '💧', ca: '#fb923c', cb: '#60a5fa' },
-      { id: 'zver', name: 'Kočka a pes', price: 900, a: '🐱', b: '🐶', ca: '#a78bfa', cb: '#86efac' },
-      { id: 'vesmir', name: 'Vesmír', price: 2000, a: '🚀', b: '👽', ca: '#93c5fd', cb: '#bef264' }
+      { id: 'neon', name: 'Neon', price: 450, a: '✦', b: '◉', ca: '#22d3ee', cb: '#f472b6' },
+      { id: 'zivly', name: 'Oheň a voda', price: 750, a: '🔥', b: '💧', ca: '#fb923c', cb: '#60a5fa' },
+      { id: 'zver', name: 'Kočka a pes', price: 1100, a: '🐱', b: '🐶', ca: '#a78bfa', cb: '#86efac' },
+      { id: 'vesmir', name: 'Vesmír', price: 1600, a: '🚀', b: '👽', ca: '#93c5fd', cb: '#bef264' }
     ] },
     bg: { name: 'Pozadí', items: [
       { id: 'auto', name: 'Podle motivu', price: 0, rar: 'Základní', sw: '◐' },
       { id: 'none', name: 'Čisté', price: 0, rar: 'Základní', sw: '○' },
-      { id: 'ocean', name: 'Bublinky', price: 300, rar: 'Běžný', sw: '🫧' },
-      { id: 'les', name: 'Padající listí', price: 300, rar: 'Běžný', sw: '🍃' },
+      { id: 'ocean', name: 'Bublinky', price: 600, rar: 'Běžný', sw: '🫧' },
+      { id: 'les', name: 'Padající listí', price: 600, rar: 'Běžný', sw: '🍃' },
       { id: 'snih', name: 'Sněžení', price: 1200, rar: 'Vzácný', sw: '❄️' },
       { id: 'zapad', name: 'Světlušky', price: 1200, rar: 'Vzácný', sw: '✨' },
-      { id: 'zlato', name: 'Zlaté jiskry', price: 4000, rar: 'Epický', sw: '🌟' },
-      { id: 'vesmir', name: 'Hvězdná obloha', price: 12000, rar: 'Epický', sw: '🌌' },
-      { id: 'lava', name: 'Žhavé uhlíky', price: 30000, rar: 'Legendární', sw: '🔥' },
-      { id: 'aurora', name: 'Polární záře', price: 80000, rar: 'Mýtický', sw: '🌈' }
+      { id: 'zlato', name: 'Zlaté jiskry', price: 2400, rar: 'Epický', sw: '🌟' },
+      { id: 'vesmir', name: 'Hvězdná obloha', price: 4300, rar: 'Epický', sw: '🌌' },
+      { id: 'lava', name: 'Žhavé uhlíky', price: 7100, rar: 'Legendární', sw: '🔥' },
+      { id: 'aurora', name: 'Polární záře', price: 12000, rar: 'Mýtický', sw: '🌈' }
     ] },
     win: { name: 'Oslava výhry', items: [
       { id: 'konfety', name: 'Konfety', price: 0, rar: 'Základní', sw: '🎉' },
-      { id: 'hvezdy', name: 'Déšť hvězd', price: 800, rar: 'Běžný', sw: '⭐' },
-      { id: 'mince', name: 'Zlatý déšť', price: 3000, rar: 'Vzácný', sw: '🪙' },
-      { id: 'ohnostroj', name: 'Ohňostroj', price: 10000, rar: 'Epický', sw: '🎆' },
-      { id: 'supernova', name: 'Supernova', price: 40000, rar: 'Legendární', sw: '💥' }
+      { id: 'hvezdy', name: 'Déšť hvězd', price: 1000, rar: 'Běžný', sw: '⭐' },
+      { id: 'mince', name: 'Zlatý déšť', price: 2000, rar: 'Vzácný', sw: '🪙' },
+      { id: 'ohnostroj', name: 'Ohňostroj', price: 3900, rar: 'Epický', sw: '🎆' },
+      { id: 'supernova', name: 'Supernova', price: 8300, rar: 'Legendární', sw: '💥' }
     ] },
     car: { name: 'Auto (závod)', items: [
       { id: 'cervene', name: 'Červené', price: 0, c: '#ef4444', s: '#ffffff' },
-      { id: 'modre', name: 'Modré', price: 200, c: '#3b82f6', s: '#fde047' },
-      { id: 'zelene', name: 'Zelené', price: 450, c: '#22c55e', s: '#052e16' },
-      { id: 'cerne', name: 'Noční', price: 900, c: '#1f2937', s: '#22d3ee' },
-      { id: 'zlate', name: 'Zlaté', price: 2500, c: '#f59e0b', s: '#7c2d12' }
+      { id: 'modre', name: 'Modré', price: 450, c: '#3b82f6', s: '#fde047' },
+      { id: 'zelene', name: 'Zelené', price: 750, c: '#22c55e', s: '#052e16' },
+      { id: 'cerne', name: 'Noční', price: 1100, c: '#1f2937', s: '#22d3ee' },
+      { id: 'zlate', name: 'Zlaté', price: 1800, c: '#f59e0b', s: '#7c2d12' }
     ] },
     cards: { name: 'Karty (pexeso)', items: [
       { id: 'recko', name: 'Antické Řecko', price: 0, art: 'recko' },
-      { id: 'sport', name: 'Sportovci', price: 300, art: 'sport' },
+      { id: 'sport', name: 'Sportovci', price: 600, art: 'sport' },
       { id: 'zvirata', name: 'Zvířata', price: 0, set: '🐶🐱🦊🐻🐼🐸🐵🦁🐷🐮🐔🐙🦋🐢🐬🦄🐝🦉' },
-      { id: 'jidlo', name: 'Jídlo', price: 250, set: '🍎🍌🍓🍉🍕🍔🍟🌮🍩🍪🍦🧀🥕🌽🍇🍒🥐🍫' },
-      { id: 'sport', name: 'Sport a hry', price: 700, set: '⚽🏀🏈🎾🏐🎱🏓🥊⛳🎯🎲🎸🚲🏆🛹🎳🥇🪁' }
+      { id: 'jidlo', name: 'Jídlo', price: 550, set: '🍎🍌🍓🍉🍕🍔🍟🌮🍩🍪🍦🧀🥕🌽🍇🍒🥐🍫' },
+      { id: 'sport', name: 'Sport a hry', price: 900, set: '⚽🏀🏈🎾🏐🎱🏓🥊⛳🎯🎲🎸🚲🏆🛹🎳🥇🪁' }
     ] }
   };
   H.UPGRADES = [
-    { id: 'income', group: 'city', name: 'Vyšší nájmy', icon: '💹', desc: '+10 % k výdělku všech budov za každou úroveň.', prices: [300, 800, 2000, 5000, 12000, 30000, 70000, 160000, 350000, 800000] },
-    { id: 'boostPow', group: 'city', name: 'Silnější bonus', icon: '⚡', desc: 'Bonus po výhře násobí výdělek budovy víc: 2× → 2,5× → 3× → 3,5× → 4×.', prices: [1500, 8000, 40000, 200000] },
-    { id: 'boostLen', group: 'city', name: 'Delší bonus', icon: '⏳', desc: 'Bonus po výhře trvá o 5 minut déle za každou úroveň (základ je 10 minut).', prices: [500, 2000, 8000, 30000, 100000] },
-    { id: 'discount', group: 'city', name: 'Stavební firma', icon: '🏗️', desc: 'Budovy jsou o 4 % levnější za každou úroveň.', prices: [400, 1500, 6000, 25000, 90000] },
-    { id: 'winBonus', group: 'city', name: 'Sponzoři', icon: '🤝', desc: 'Bonus města za dohranou hru je o minutu výdělku větší za každou úroveň.', prices: [600, 2500, 10000, 40000, 150000] },
-    { id: 'cap', group: 'city', name: 'Městský sklad', icon: '🏬', desc: 'Jak dlouho město vydělává, když je appka zavřená: 8 → 12 → 16 → 24 hodin.', prices: [1000, 4000, 15000] },
-    { id: 'streakCap', group: 'game', name: 'Horká ruka', icon: '🔥', desc: 'Bonus za sérii výher může růst výš: strop +50 % → +75 % → +100 %.', prices: [2000, 20000] },
-    { id: 'undo', group: 'game', name: 'Vrátit tah', icon: '↩️', desc: 'Počet vrácení tahu za hru (piškvorky, čtyři v řadě, dáma, 2048). Na obtížnosti Nemožná je vypnuté.', prices: [200, 600, 1500] },
-    { id: 'shield', group: 'game', name: 'Štít', icon: '🛡️', desc: 'Závod: tolik nárazů auto vydrží bez zpomalení.', prices: [200, 600, 1500] },
-    { id: 'magnet', group: 'game', name: 'Magnet', icon: '🧲', desc: 'Závod: přitahuje mince ze sousedních pruhů (vyšší úroveň = větší dosah).', prices: [250, 700, 1600] },
-    { id: 'detector', group: 'game', name: 'Detektor min', icon: '📡', desc: 'Miny: počet bezpečných nápověd za hru.', prices: [200, 600, 1500] }
+    { id: 'streakCap', group: 'game', name: 'Horká ruka', icon: '🔥', desc: 'Bonus za sérii výher může růst výš: strop +50 % → +75 % → +100 %.', prices: [1600, 5700] },
+    { id: 'undo', group: 'game', name: 'Vrátit tah', icon: '↩️', desc: 'Počet vrácení tahu za hru (piškvorky, čtyři v řadě, dáma, 2048). Na obtížnosti Nemožná je vypnuté.', prices: [450, 850, 1400] },
+    { id: 'shield', group: 'game', name: 'Štít', icon: '🛡️', desc: 'Závod: tolik nárazů auto vydrží bez zpomalení.', prices: [450, 850, 1400] },
+    { id: 'magnet', group: 'game', name: 'Magnet', icon: '🧲', desc: 'Závod: přitahuje mince ze sousedních pruhů (vyšší úroveň = větší dosah).', prices: [550, 900, 1400] },
+    { id: 'detector', group: 'game', name: 'Detektor min', icon: '📡', desc: 'Miny: počet bezpečných nápověd za hru.', prices: [450, 850, 1400] }
   ];
   H.BADGES = [
     { id: 'first', icon: '🎉', name: 'První výhra', desc: 'Vyhraj jakoukoli hru.' },
@@ -154,24 +139,16 @@
     { id: 'collector', icon: '🎨', name: 'Sběratel', desc: 'Vlastni 8 skinů.' },
     { id: 'quest10', icon: '📅', name: 'Výzvy přijaty', desc: 'Splň 10 denních výzev.' },
     { id: 'slovo2', icon: '🔮', name: 'Jasnovidec', desc: 'Uhodni Slovo nejpozději na druhý pokus.' },
-    { id: 'city1', icon: '🏗️', name: 'Základní kámen', desc: 'Postav první budovu ve městě.' },
-    { id: 'cityAll', icon: '🏙️', name: 'Starosta', desc: 'Postav všechny budovy.' },
-    { id: 'city100', icon: '🌆', name: 'Velkoměsto', desc: 'Měj budovy s úrovněmi dohromady 100.' },
-    { id: 'earn100k', icon: '🏧', name: 'Zlatý důl', desc: 'Město ti vydělalo celkem 100 000 mincí.' },
-    { id: 'metro', icon: '🌃', name: 'Metropole', desc: 'Rozšiř sídlo na metropoli.' },
-    { id: 'planet', icon: '🌍', name: 'Vládce planety', desc: 'Rozšiř sídlo na celou planetu.' },
-    { id: 'galaxy', icon: '🌌', name: 'Galaktická říše', desc: 'Rozšiř sídlo na galaxii.' },
     { id: 'streak7', icon: '🌋', name: 'V ráži', desc: 'Vyhraj 7 her po sobě napříč hrami.' }
   ];
 
   /* ---------- Stav ---------- */
   const defaults = () => ({
     schema: 1, xp: 0, coins: 0,
-    owned: { theme: ['neon'], bg: ['auto', 'none'], win: ['konfety'], city: ['klasik'], pieces: ['klasik'], car: ['cervene'], cards: ['recko', 'zvirata'] },
-    active: { theme: 'neon', bg: 'auto', win: 'konfety', city: 'klasik', pieces: 'klasik', car: 'cervene', cards: 'recko' },
-    upg: { undo: 0, shield: 0, magnet: 0, detector: 0, cap: 0, income: 0, boostPow: 0, boostLen: 0, discount: 0, winBonus: 0, streakCap: 0 },
+    owned: { theme: ['neon'], bg: ['auto', 'none'], win: ['konfety'], pieces: ['klasik'], car: ['cervene'], cards: ['recko', 'zvirata'] },
+    active: { theme: 'neon', bg: 'auto', win: 'konfety', pieces: 'klasik', car: 'cervene', cards: 'recko' },
+    upg: { undo: 0, shield: 0, magnet: 0, detector: 0, streakCap: 0 },
     streak: 0, bestWin: 0,
-    city: { b: {}, boost: {}, last: 0, frac: 0, earned: 0, stage: 0 },
     games: {}, prefs: {}, saves: {}, badges: {},
     daily: { date: '', quests: [] }, questsDone: 0, seenHelp: {},
     settings: { sound: true, vib: true, motion: 'auto', theme: 'system' }
@@ -185,13 +162,22 @@
         for (const kk in d[k]) base[k][kk] = d[k][kk];
       } else base[k] = d[k];
     }
+    H.migrate(base);
     return base;
   };
-  H.migrate = s => { if (!s.owned.cards.includes('recko')) { s.owned.cards.unshift('recko'); if (s.active.cards === 'zvirata') s.active.cards = 'recko'; } };
+  /* úklid starých dat: zrušené Město (S.city, vylepšení, styl domů, odznaky) a neznámé klíče se zahodí */
+  H.migrate = s => {
+    for (const k of Object.keys(s.owned)) if (!H.SKINS[k] || !Array.isArray(s.owned[k])) delete s.owned[k];
+    for (const k in H.SKINS) if (!s.owned[k]) s.owned[k] = defaults().owned[k];
+    for (const k of Object.keys(s.active)) if (!H.SKINS[k]) delete s.active[k];
+    for (const k of Object.keys(s.upg)) if (!H.UPGRADES.some(u => u.id === k)) delete s.upg[k];
+    for (const k of Object.keys(s.badges)) if (!H.BADGES.some(b => b.id === k)) delete s.badges[k];
+    if (!s.owned.cards.includes('recko')) { s.owned.cards.unshift('recko'); if (s.active.cards === 'zvirata') s.active.cards = 'recko'; }
+  };
   H.load = () => {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) { const d = JSON.parse(raw); if (H.validate(d)) { H.S = H.merge(d); H.migrate(H.S); return; } }
+      if (raw) { const d = JSON.parse(raw); if (H.validate(d)) { H.S = H.merge(d); return; } }
     } catch (e) { console.warn('Načtení dat selhalo, začínám s čistým stavem.', e); }
     H.S = defaults();
   };
