@@ -11,10 +11,14 @@ Sbírka rychlých her do kapsy. Běží celá v telefonu, i bez internetu, bez �
 - **Pexeso** proti počítači – 20 až 80 karet, kreslené sady Antické Řecko a Sportovci
 - **2048** – varianta Mini 3×3
 - **Had** – varianta Portály
-- **Sudoku** – 9×9 i 16×16 (bloky 4×4, symboly 0–F), generované zadání s jediným řešením; obtížnost určují techniky, které zadání vyžaduje (Lehké: jen jednoduché tahy, Střední: zamčení kandidáti a dvojice, Těžké: trojice a X-Wing, Ďábelské: Swordfish, XY-Wing a víc); po výhře hra řekne, jakou nejtěžší techniku zadání chtělo; poznámky, varianta Tři životy
+- **Sudoku** – na výběr 4, 9 nebo 16 čísel (bloky 2×2, 3×3 a 4×4), všude jen čísla; generované zadání s jediným řešením; obtížnost určují techniky, které zadání vyžaduje (Lehké: jen jednoduché tahy, Střední: zamčení kandidáti a dvojice, Těžké: trojice a X-Wing, Ďábelské: Swordfish, XY-Wing a víc), u mini 4×4 mění obtížnost jen počet zadaných čísel; po výhře hra řekne, jakou nejtěžší techniku zadání chtělo; poznámky, varianta Tři životy
 - **Slovo** – hádání českého slova z pěti písmen bez diakritiky, varianta Přísný režim
 - **Lodě** proti počítači – vlastní rozmístění flotily na poli 10×10, kreslené lodě, varianta Velké moře 12×12
 - **Dáma** proti počítači – varianta Dobrovolné braní
+
+**Vlastní pořadí her:** na hlavní obrazovce tlačítko Upravit pořadí. Hry přetáhneš za úchyt nebo posuneš šipkami, pořadí se hned uloží.
+
+**Styly:** v Nastavení → Vzhled zvolíš styl aplikace (Výchozí, Černobílý, Moderní, Glassmorfismus, Neobrutalismus, Neumorfismus, Bento grid) a zvlášť styl ve hrách. Styly jsou zdarma a mění tvar a povrchy; barvy dál určuje motiv z Obchodu, jen Černobílý je vždy černobílý.
 
 **Učebnice:** záložka v dolní liště a tlačítko 📖 Učebnice v menu každé hry. Postupy, triky a strategie od základů po mistrovské finty, s obrázky pozic, pro Sudoku, Miny, Dámu, Piškvorky, Čtyři v řadě, Lodě, Slovo, 2048, Pexeso a Hada.
 
@@ -28,7 +32,7 @@ Sbírka rychlých her do kapsy. Běží celá v telefonu, i bez internetu, bez �
 
 **Motivy appky:** devět motivů od Základního po Mýtický. Lepší motivy přidávají efekty: částice na pozadí (bublinky, listí, jiskry, hvězdy, žhavé uhlíky), zářící a duhové obrysy, odlesky dlaždic a jiskry při ťuknutí. Před koupí si motiv můžeš na 10 sekund vyzkoušet. Efekty se vypínají s animacemi v Nastavení a během her neběží.
 
-**Obchod:** jen kosmetika a vylepšení her. Motivy, pozadí, oslavy, karty do pexesa, kameny a auta mění vzhled; Vylepšení her přidávají vracení tahu, štít a magnet v Závodě, detektor min a vyšší strop bonusu za sérii. Mince se dají získat jen hraním: odměna za hru, denní výzvy a bonus za nový level.
+**Obchod:** jen kosmetika a vylepšení her, rozdělené do sbalovacích sekcí (Motivy, Pozadí, Oslavy výhry, Vzhled her, Vylepšení her) s filtrem Vše / Nekoupené / Koupené. Motivy, pozadí, oslavy, karty do pexesa, kameny a auta mění vzhled; Vylepšení her přidávají vracení tahu, štít a magnet v Závodě, detektor min a vyšší strop bonusu za sérii. Mince se dají získat jen hraním: odměna za hru, denní výzvy a bonus za nový level.
 
 **Série výher:** každá další výhra po sobě (napříč hrami proti počítači, Minami, Sudoku a Slovem) přidá 5 % k odměně, nejvýš 50 % (strop jde vylepšit na 100 %). Prohra sérii vynuluje, remíza a hry na skóre ji nemění.
 

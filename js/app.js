@@ -2,7 +2,7 @@
 /* Herna — obrazovky, průběh her, odměny */
 (function () {
   const { el } = H;
-  const VERSION = '2.2.0';
+  const VERSION = '2.3.0';
   const $ = s => document.querySelector(s);
   let S, view = 'home', cur = null, menuOpen = false; // cur = právě otevřená hra
 
@@ -14,12 +14,26 @@
     const r = document.documentElement;
     r.dataset.mode = dark ? 'dark' : 'light';
     const skinId = previewSkin || S.active.theme, skin = H.SKINS.theme.items.find(i => i.id === skinId) || H.SKINS.theme.items[0];
-    r.dataset.skin = skin.id; r.dataset.fx = skin.fx;
+    r.dataset.skin = skin.id; skinFx = skin.fx;
     r.classList.toggle('no-motion', !H.motionOK());
-    const m = $('meta[name="theme-color"]'); if (m) m.setAttribute('content', dark ? '#09090b' : '#f5f5f7');
-    const bgSel = S.active.bg || 'auto';
-    H.fx.set(skin.id, dark, bgSel === 'auto' ? undefined : bgSel === 'none' ? null : bgSel);
+    const bgSel = S.active.bg || 'auto', mono = S.settings.style === 'mono'; // Černobílý: bez částic a jisker
+    H.fx.set(mono ? 'neon' : skin.id, dark, mono ? null : bgSel === 'auto' ? undefined : bgSel === 'none' ? null : bgSel);
+    applyStyle();
   };
+  /* Styl (Nastavení → Vzhled): mimo hru platí styl aplikace, ve hře styl her. <html data-style> nese aktivní styl,
+     data-gstyle styl her. Přepíná se i při vstupu do hry a návratu (sleduje třídu .ingame na body). */
+  let skinFx = '', styleKey = '';
+  const applyStyle = () => {
+    if (!S) return;
+    const r = document.documentElement, st = S.settings, game = st.gstyle === 'same' ? st.style : st.gstyle;
+    const s = document.body.classList.contains('ingame') ? game : st.style, fx = s === 'mono' ? '' : skinFx;
+    const key = [s, game, fx, r.dataset.mode].join('|');
+    if (key === styleKey) return;
+    styleKey = key; r.dataset.style = s; r.dataset.gstyle = game; r.dataset.fx = fx;
+    const m = $('meta[name="theme-color"]'), bg = getComputedStyle(r).backgroundColor;
+    if (m) m.setAttribute('content', /^rgb/.test(bg) ? bg : r.dataset.mode === 'dark' ? '#09090b' : '#f5f5f7');
+  };
+  new MutationObserver(applyStyle).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
   /* ---------- Toast a dialogy ---------- */
   let toastT = 0;
@@ -72,6 +86,11 @@
   };
 
   /* ---------- Domů ---------- */
+  /* Kostra appky (stránka, body, #app) se nesmí nikdy posunout: posouvá se jen obsah v .view. Když ji posune prohlížeč sám
+     (fokus, scrollIntoView, iOS po návratu do appky), celá appka i s lištou by vyjela nahoru pod stavový řádek. */
+  const pinShell = n => { if (n.scrollTop || n.scrollLeft) { n.scrollTop = 0; n.scrollLeft = 0; } };
+  window.addEventListener('scroll', () => { if (window.scrollY || window.scrollX) window.scrollTo(0, 0); pinShell(document.documentElement); }, { passive: true });
+  for (const n of [document.body, $('#app')]) n.addEventListener('scroll', () => pinShell(n), { passive: true });
   const renderTop = () => {
     const L = H.level(S.xp);
     const top = $('#top'); top.textContent = '';
@@ -81,25 +100,116 @@
       S.streak >= 2 ? el('span', { class: 'streak', role: 'img', 'aria-label': `Série ${S.streak} výher`, text: '🔥' + S.streak }) : null,
       el('span', { class: 'coins', id: 'coinsTop', text: '🪙 ' + H.fmt(S.coins) })));
   };
+  /* Vlastní pořadí her: S.order = [id, …]. Neznámá (zrušená) id se přeskočí, hry, které v seznamu nejsou (nové), se přidají na konec. */
+  let editOrder = false;
+  const orderedGames = () => {
+    const ids = Array.isArray(S.order) ? S.order : [], seen = new Set(), out = [];
+    for (const id of ids) if (typeof id === 'string' && H.byId[id] && !seen.has(id)) { seen.add(id); out.push(H.byId[id]); }
+    for (const g of H.games) if (!seen.has(g.id)) out.push(g);
+    return out;
+  };
+  H.orderedGames = () => orderedGames();
+  const tile = g => {
+    const st = S.games[g.id], gl = H.gameLevel(st ? st.xp : 0).level;
+    return el('button', { class: 'tile', 'data-id': g.id, style: `--c1:${g.grad[0]};--c2:${g.grad[1]}`, onclick: () => openGame(g.id) },
+      el('span', { class: 'tico' }, H.ico(g.id)),
+      el('span', { class: 'tname', text: g.name }),
+      el('span', { class: 'tdesc', text: S.saves[g.id] ? '▶ Rozehráno' : tileInfo(g) }),
+      el('span', { class: 'tlvl', text: 'Úr. ' + gl }));
+  };
+  const GRIP = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>';
+  /* úprava pořadí: tažení za úchyt (myš i prst, u okraje se seznam sám posouvá) a tlačítka výš/níž */
+  const orderEditor = games => {
+    const live = el('p', { class: 'sr', 'aria-live': 'polite' });
+    const list = el('ol', { class: 'reorder', 'aria-label': 'Pořadí her' });
+    const isDefault = () => orderedGames().every((g, i) => g === H.games[i]);
+    const reset = el('button', { class: 'btn small ghost', text: 'Obnovit výchozí pořadí', disabled: isDefault(),
+      onclick: () => confirmBox('Výchozí pořadí?', 'Hry se seřadí tak, jak byly v appce původně.', 'Obnovit', () => { S.order = []; H.save(); render(); H.toast('Pořadí her je zase výchozí.'); }) });
+    const save = () => { S.order = [...list.children].map(li => li.dataset.id); H.save(); reset.disabled = isDefault(); };
+    const refresh = () => {
+      const items = [...list.children], n = items.length;
+      items.forEach((li, i) => {
+        const [up, down] = li.querySelectorAll('.rmove button');
+        up.disabled = i === 0; down.disabled = i === n - 1;
+        li.querySelector('.rpos').textContent = i + 1 + '.';
+      });
+    };
+    const say = li => { const i = [...list.children].indexOf(li); live.textContent = `${H.byId[li.dataset.id].name}: ${i + 1}. místo z ${list.children.length}`; };
+    const move = (li, dir, btn) => {
+      const other = dir < 0 ? li.previousElementSibling : li.nextElementSibling; if (!other) return;
+      if (dir < 0) list.insertBefore(li, other); else list.insertBefore(other, li);
+      refresh(); save(); say(li); H.sfx('tap');
+      const [up, down] = li.querySelectorAll('.rmove button');
+      (btn.disabled ? (btn === up ? down : up) : btn).focus({ preventScroll: true });
+      const sc = list.closest('.view'), r = li.getBoundingClientRect(), vr = sc.getBoundingClientRect(); // jen obsah, ne celá stránka
+      if (r.top < vr.top) sc.scrollTop -= vr.top - r.top + 8; else if (r.bottom > vr.bottom) sc.scrollTop += r.bottom - vr.bottom + 8;
+    };
+    for (const g of games) {
+      const li = el('li', { class: 'ritem', 'data-id': g.id },
+        el('span', { class: 'rhandle', 'aria-hidden': 'true', title: 'Táhni', html: GRIP }),
+        el('span', { class: 'rpos', 'aria-hidden': 'true' }),
+        el('span', { class: 'tico', style: `--c1:${g.grad[0]};--c2:${g.grad[1]}` }, H.ico(g.id)),
+        el('span', { class: 'rname', text: g.name }),
+        el('span', { class: 'rmove' },
+          el('button', { class: 'icon', 'aria-label': `Posunout ${g.name} výš`, text: '↑', onclick: e => move(li, -1, e.currentTarget) }),
+          el('button', { class: 'icon', 'aria-label': `Posunout ${g.name} níž`, text: '↓', onclick: e => move(li, 1, e.currentTarget) })));
+      list.append(li);
+    }
+    refresh();
+    /* tažení: položka jede pod prstem, sousedé se přeskládají, jakmile ji přejede přes jejich střed */
+    let d = null;
+    const place = () => {
+      const li = d.li, top = d.y - d.grab - list.getBoundingClientRect().top, mid = top + li.offsetHeight / 2;
+      const prev = li.previousElementSibling, next = li.nextElementSibling;
+      if (prev && mid < prev.offsetTop + prev.offsetHeight / 2) { list.insertBefore(prev, li.nextElementSibling); d.moved = true; return place(); }
+      if (next && mid > next.offsetTop + next.offsetHeight / 2) { list.insertBefore(next, li); d.moved = true; return place(); }
+      li.style.transform = `translateY(${top - li.offsetTop}px)`;
+    };
+    const tick = now => {
+      if (!d) return;
+      const sc = list.closest('.view'), r = sc.getBoundingClientRect(), edge = 72, dt = Math.min(64, now - (d.t || now)); d.t = now;
+      let v = 0; // u horního a dolního okraje se seznam posouvá, tím rychleji, čím blíž je prst okraji (až 0,9 px/ms)
+      if (d.y < r.top + edge) v = -Math.min(1, (r.top + edge - d.y) / edge);
+      else if (d.y > r.bottom - edge) v = Math.min(1, (d.y - r.bottom + edge) / edge);
+      if (v && dt) { const before = sc.scrollTop; sc.scrollTop = before + Math.sign(v) * Math.max(1, Math.round(Math.abs(v) * .9 * dt)); if (sc.scrollTop !== before) place(); }
+      d.raf = requestAnimationFrame(tick);
+    };
+    const onMove = e => { if (!d || e.pointerId !== d.id) return; e.preventDefault(); d.y = e.clientY; place(); };
+    const onUp = e => {
+      if (!d || e.pointerId !== d.id) return;
+      const li = d.li; cancelAnimationFrame(d.raf);
+      li.style.transform = ''; li.classList.remove('drag'); list.classList.remove('dragging');
+      window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); window.removeEventListener('pointercancel', onUp);
+      if (d.moved) { refresh(); save(); say(li); H.sfx('place'); }
+      d = null;
+    };
+    list.addEventListener('pointerdown', e => {
+      const h = e.target.closest && e.target.closest('.rhandle');
+      if (!h || d || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      e.preventDefault();
+      const li = h.closest('.ritem');
+      d = { li, id: e.pointerId, y: e.clientY, grab: e.clientY - li.getBoundingClientRect().top, moved: false, raf: 0 };
+      li.classList.add('drag'); list.classList.add('dragging'); H.buzz(12);
+      window.addEventListener('pointermove', onMove, { passive: false }); window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
+      d.raf = requestAnimationFrame(tick);
+    });
+    return [el('p', { class: 'muted ordhint', text: 'Chyť hru za úchyt vlevo a přetáhni ji, nebo ji posuň šipkami. Pořadí se ukládá hned.' }), list, el('div', { class: 'ordfoot' }, reset), live];
+  };
   const renderHome = main => {
     H.ensureDaily();
-    const qs = S.daily.quests, done = qs.filter(q => q.done).length;
-    main.append(
+    const qs = S.daily.quests, done = qs.filter(q => q.done).length, games = orderedGames();
+    const toggleEdit = on => { editOrder = on; render(); const b = $('#view .ordb'); if (b) b.focus({ preventScroll: true }); };
+    main.append(...[
       el('h1', { class: 'sr', text: 'Herna' }),
-      el('p', { class: 'eyebrow', text: 'Tvoje hry' }),
-      el('details', { class: 'quests' },
+      el('div', { class: 'homehead' },
+        el('p', { class: 'eyebrow', text: editOrder ? 'Pořadí her' : 'Tvoje hry' }),
+        el('button', { class: 'btn small ordb' + (editOrder ? ' primary' : ' ghost'), text: editOrder ? 'Hotovo' : 'Upravit pořadí', 'aria-label': editOrder ? 'Hotovo, ukončit úpravu pořadí' : 'Upravit pořadí her', onclick: () => toggleEdit(!editOrder) })),
+      editOrder ? null : el('details', { class: 'quests' },
         el('summary', {}, el('span', { text: 'Denní výzvy' }), el('span', { class: 'pill', text: `${done}/3 splněno` })),
         el('ul', {}, qs.map(q => el('li', { class: q.done ? 'done' : '' },
           el('span', { text: (q.done ? '✓ ' : '○ ') + q.text }),
           el('span', { class: 'qr', text: q.done ? 'splněno' : `${Math.min(q.prog, q.n)}/${q.n} · +${q.reward} 🪙` }))))),
-      el('div', { class: 'grid' }, H.games.map(g => {
-        const st = S.games[g.id], gl = H.gameLevel(st ? st.xp : 0).level;
-        return el('button', { class: 'tile', style: `--c1:${g.grad[0]};--c2:${g.grad[1]}`, onclick: () => openGame(g.id) },
-          el('span', { class: 'tico' }, H.ico(g.id)),
-          el('span', { class: 'tname', text: g.name }),
-          el('span', { class: 'tdesc', text: S.saves[g.id] ? '▶ Rozehráno' : tileInfo(g) }),
-          el('span', { class: 'tlvl', text: 'Úr. ' + gl }));
-      })));
+      editOrder ? orderEditor(games) : el('div', { class: 'grid' }, games.map(tile))].flat().filter(Boolean));
   };
 
   /* ---------- Obchod ---------- */
@@ -109,46 +219,118 @@
       S.coins -= price; fn(); checkBadges([]); H.save(); H.sfx('coin'); applyTheme(); render();
     });
   };
+  /* Obchod je rozdělený do sbalovacích sekcí; která je otevřená a filtr si pamatuje localStorage (mimo uložená data hry) */
+  const SHOP_KEY = 'herna:obchod';
+  const SHOP_SECTIONS = [
+    { id: 'theme', title: 'Motivy', icon: '🎨', cats: ['theme'] },
+    { id: 'bg', title: 'Pozadí', icon: '🌌', cats: ['bg'] },
+    { id: 'win', title: 'Oslavy výhry', icon: '🎉', cats: ['win'] },
+    { id: 'look', title: 'Vzhled her', icon: '🃏', cats: ['cards', 'pieces', 'car'] },
+    { id: 'upg', title: 'Vylepšení her', icon: '⚡', upg: 'game' }
+  ];
+  const shopUI = (() => {
+    const ui = { open: { theme: true }, filter: 'all' };
+    try {
+      const v = JSON.parse(localStorage.getItem(SHOP_KEY) || 'null');
+      if (v && typeof v.open === 'object' && v.open) ui.open = v.open;
+      if (v && ['all', 'new', 'own'].includes(v.filter)) ui.filter = v.filter;
+    } catch (e) { /* bez úložiště platí výchozí stav */ }
+    return ui;
+  })();
+  const saveShopUI = () => { try { localStorage.setItem(SHOP_KEY, JSON.stringify(shopUI)); } catch (e) { /* nic */ } };
+  let shopFocus = null; // po překreslení vrátí fokus na stejné tlačítko
   const renderShop = main => {
-    main.append(el('h1', { text: 'Obchod' }), el('p', { class: 'muted', text: 'Mince získáváš hraním. Nic se tu nekupuje za skutečné peníze.' }));
-    const upgrades = (title, group) => main.append(el('h2', { text: title }), el('div', { class: 'list' }, H.UPGRADES.filter(u => u.group === group).map(u => {
+    const f = shopUI.filter;
+    main.append(el('h1', { text: 'Obchod' }), el('p', { class: 'muted', text: 'Mince získáváš hraním. Nic se tu nekupuje za skutečné peníze.' }),
+      el('div', { class: 'seg shfilter', role: 'radiogroup', 'aria-label': 'Zobrazit' }, [['all', 'Vše'], ['new', 'Nekoupené'], ['own', 'Koupené']].map(([v, t]) =>
+        el('button', { class: 'segb', role: 'radio', 'aria-checked': String(f === v), 'data-k': 'f:' + v, text: t,
+          onclick: () => { if (f === v) return; shopUI.filter = v; saveShopUI(); H.sfx('tap'); shopFocus = 'f:' + v; render(); } }))));
+    const upgradeRows = group => H.UPGRADES.filter(u => u.group === group).filter(u => {
+      const lv = S.upg[u.id] || 0;
+      return f === 'all' || (f === 'new' ? lv < u.prices.length : lv > 0);
+    }).map(u => {
       const lv = S.upg[u.id] || 0, max = lv >= u.prices.length, price = u.prices[lv];
       return el('div', { class: 'row' },
         el('span', { class: 'ricon', 'aria-hidden': 'true', text: u.icon }),
         el('div', { class: 'rmid' }, el('strong', { text: `${u.name} · úroveň ${lv}/${u.prices.length}` }), el('span', { class: 'muted', text: u.desc })),
-        el('button', { class: 'btn small' + (max ? '' : ' primary'), disabled: max, text: max ? 'Maximum' : `🪙 ${H.fmt(price)}`, 'aria-label': max ? `${u.name}: maximum` : `Vylepšit ${u.name} za ${H.fmt(price)} mincí`,
-          onclick: () => buy(`${u.name} (úroveň ${lv + 1})`, price, () => { S.upg[u.id] = lv + 1; }) }));
-    })));
-    const skins = cat => {
-      const c = H.SKINS[cat];
-      main.append(el('h2', { text: c.name }), el('div', { class: 'skins' }, c.items.map(it => {
-        const own = S.owned[cat].includes(it.id), act = S.active[cat] === it.id;
-        const prev = cat === 'bg' || cat === 'win' ? el('span', { class: 'swe', text: it.sw })
-          : cat === 'cards' && it.art ? el('span', { class: 'swc', html: H.cardFace(it, 0) + H.cardFace(it, 3) })
-          : cat === 'theme' ? el('span', { class: 'sw', style: `background:${it.sw}` })
-            : cat === 'pieces' ? el('span', { class: 'swt' }, el('b', { style: `color:${it.ca}`, text: it.a }), el('b', { style: `color:${it.cb}`, text: it.b }))
-              : cat === 'car' ? el('span', { class: 'sw car', style: `background:${it.c};border-color:${it.s}` })
-                : el('span', { class: 'swt', text: Array.from(it.set).slice(0, 2).join('') });
-        return el('button', { class: 'skin' + (act ? ' active' : ''), 'aria-pressed': String(act),
-          'aria-label': `${it.name}${it.rar ? ', ' + it.rar : ''}: ${act ? 'aktivní' : own ? 'použít' : 'koupit za ' + H.fmt(it.price) + ' mincí'}`,
-          onclick: () => {
-            if (act) return;
-            if (own) { S.active[cat] = it.id; previewSkin = null; H.save(); H.sfx('tap'); applyTheme(); render(); return; }
-            const get = () => buy(it.name, it.price, () => { S.owned[cat].push(it.id); S.active[cat] = it.id; previewSkin = null; });
-            if (cat !== 'theme') return get();
-            H.modal({ title: `${it.name} · ${it.rar}`, body: [el('p', { class: 'muted', text: 'Co tenhle motiv umí:' }), el('ul', { class: 'fxlist' }, it.about.map(t => el('li', { text: t }))),
-              el('p', { class: 'muted', text: S.coins >= it.price ? `Cena ${H.fmt(it.price)} mincí.` : `Cena ${H.fmt(it.price)} mincí, chybí ti ${H.fmt(it.price - S.coins)}.` })],
-              actions: [{ label: 'Vyzkoušet na 10 s', fn: () => {
-                previewSkin = it.id; applyTheme(); H.toast(`Náhled motivu ${it.name}. Za chvíli se vrátí tvůj.`);
-                clearTimeout(previewT); previewT = setTimeout(() => { previewSkin = null; applyTheme(); }, 10000);
-              } }, { label: 'Koupit', primary: true, fn: () => { setTimeout(get, 0); } }] });
-          } },
-          el('span', { class: 'sprev', 'aria-hidden': 'true' }, prev), el('span', { class: 'sname', text: it.name }), it.rar ? el('span', { class: 'srar', text: it.rar }) : null,
-          el('span', { class: 'sstate', text: act ? '✓ Aktivní' : own ? 'Použít' : `🪙 ${H.fmt(it.price)}` }));
-      })));
-      if (cat === 'win') main.append(el('button', { class: 'btn small ghost', text: 'Přehrát aktivní oslavu', onclick: () => H.confetti() }));
+        el('button', { class: 'btn small' + (max ? '' : ' primary'), disabled: max, 'data-k': 'u:' + u.id, text: max ? 'Maximum' : `🪙 ${H.fmt(price)}`, 'aria-label': max ? `${u.name}: maximum` : `Vylepšit ${u.name} za ${H.fmt(price)} mincí`,
+          onclick: () => buy(`${u.name} (úroveň ${lv + 1})`, price, () => { S.upg[u.id] = lv + 1; shopFocus = 'u:' + u.id; }) }));
+    });
+    const skinTiles = cat => H.SKINS[cat].items.map((it, i) => [it, i]).filter(([it]) => {
+      const own = S.owned[cat].includes(it.id);
+      return f === 'all' || (f === 'new' ? !own : own);
+    }).map(([it, i]) => {
+      const own = S.owned[cat].includes(it.id), act = S.active[cat] === it.id, key = `s:${cat}:${i}`;
+      const prev = cat === 'bg' || cat === 'win' ? el('span', { class: 'swe', text: it.sw })
+        : cat === 'cards' && it.art ? el('span', { class: 'swc', html: H.cardFace(it, 0) + H.cardFace(it, 3) })
+        : cat === 'theme' ? el('span', { class: 'sw', style: `background:${it.sw}` })
+          : cat === 'pieces' ? el('span', { class: 'swt' }, el('b', { style: `color:${it.ca}`, text: it.a }), el('b', { style: `color:${it.cb}`, text: it.b }))
+            : cat === 'car' ? el('span', { class: 'sw car', style: `background:${it.c};border-color:${it.s}` })
+              : el('span', { class: 'swt', text: Array.from(it.set).slice(0, 2).join('') });
+      return el('button', { class: 'skin' + (act ? ' active' : '') + (own ? ' owned' : ''), 'aria-pressed': String(act), 'data-k': key,
+        'aria-label': `${it.name}${it.rar ? ', ' + it.rar : ''}: ${act ? 'aktivní' : own ? 'použít' : 'koupit za ' + H.fmt(it.price) + ' mincí'}`,
+        onclick: () => {
+          if (act) return;
+          if (own) { S.active[cat] = it.id; previewSkin = null; H.save(); H.sfx('tap'); applyTheme(); shopFocus = key; render(); return; }
+          const get = () => buy(it.name, it.price, () => { S.owned[cat].push(it.id); S.active[cat] = it.id; previewSkin = null; shopFocus = key; });
+          if (cat !== 'theme') return get();
+          H.modal({ title: `${it.name} · ${it.rar}`, body: [el('p', { class: 'muted', text: 'Co tenhle motiv umí:' }), el('ul', { class: 'fxlist' }, it.about.map(t => el('li', { text: t }))),
+            el('p', { class: 'muted', text: S.coins >= it.price ? `Cena ${H.fmt(it.price)} mincí.` : `Cena ${H.fmt(it.price)} mincí, chybí ti ${H.fmt(it.price - S.coins)}.` })],
+            actions: [{ label: 'Vyzkoušet na 10 s', fn: () => {
+              previewSkin = it.id; applyTheme(); H.toast(`Náhled motivu ${it.name}. Za chvíli se vrátí tvůj.`);
+              clearTimeout(previewT); previewT = setTimeout(() => { previewSkin = null; applyTheme(); }, 10000);
+            } }, { label: 'Koupit', primary: true, fn: () => { setTimeout(get, 0); } }] });
+        } },
+        el('span', { class: 'sprev', 'aria-hidden': 'true' }, prev), el('span', { class: 'sname', text: it.name }), it.rar ? el('span', { class: 'srar', text: it.rar }) : null,
+        el('span', { class: 'sstate', text: act ? '✓ Aktivní' : own ? 'Použít' : `🪙 ${H.fmt(it.price)}` }));
+    });
+    /* souhrn do hlavičky sekce: kolik vlastníš a co si můžeš koupit */
+    const summary = sec => {
+      let have = 0, total = 0;
+      const offers = [];
+      if (sec.upg) for (const u of H.UPGRADES.filter(x => x.group === sec.upg)) {
+        const lv = S.upg[u.id] || 0; have += lv; total += u.prices.length;
+        if (lv < u.prices.length) offers.push({ name: `${u.name} ${lv + 1}`, price: u.prices[lv] });
+      } else for (const cat of sec.cats) for (const it of H.SKINS[cat].items) {
+        total++;
+        if (S.owned[cat].includes(it.id)) have++; else offers.push({ name: it.name, price: it.price });
+      }
+      offers.sort((a, b) => a.price - b.price);
+      const can = offers.filter(o => o.price <= S.coins);
+      const hint = !offers.length ? (sec.upg ? 'Všechno vylepšené na maximum' : 'Všechno máš')
+        : can.length ? `Můžeš koupit: ${can[0].name} · 🪙 ${H.fmt(can[0].price)}`
+          : `Nejlevnější: ${offers[0].name}, chybí 🪙 ${H.fmt(offers[0].price - S.coins)}`;
+      return { have, total, hint, can: can.length > 0, done: !offers.length };
     };
-    skins('theme'); skins('bg'); skins('win'); upgrades('Vylepšení her', 'game'); skins('cards'); skins('pieces'); skins('car');
+    for (const sec of SHOP_SECTIONS) {
+      const sm = summary(sec), open = !!shopUI.open[sec.id], bodyId = 'shop-' + sec.id;
+      const content = [];
+      if (sec.upg) { const rows = upgradeRows(sec.upg); if (rows.length) content.push(el('div', { class: 'list' }, rows)); }
+      else for (const cat of sec.cats) {
+        const tiles = skinTiles(cat); if (!tiles.length) continue;
+        if (sec.cats.length > 1) content.push(el('h3', { text: H.SKINS[cat].name }));
+        content.push(el('div', { class: 'skins' }, tiles));
+      }
+      if (!content.length) content.push(el('p', { class: 'muted shempty', text: f === 'new' ? 'Tady už máš všechno.' : 'Tady zatím nic nemáš.' }));
+      if (sec.id === 'win' && f !== 'new') content.push(el('button', { class: 'btn small ghost', text: 'Přehrát aktivní oslavu', onclick: () => H.confetti() }));
+      const body = el('div', { class: 'shbody', id: bodyId, role: 'region', 'aria-label': sec.title, hidden: !open }, content);
+      const head = el('button', { class: 'shhead', 'aria-expanded': String(open), 'aria-controls': bodyId, 'data-k': 'h:' + sec.id,
+        onclick: () => {
+          const o = head.getAttribute('aria-expanded') !== 'true';
+          head.setAttribute('aria-expanded', String(o)); body.hidden = !o; head.parentNode.parentNode.classList.toggle('open', o);
+          if (o) shopUI.open[sec.id] = true; else delete shopUI.open[sec.id];
+          saveShopUI(); H.sfx('tap');
+        } },
+        el('span', { class: 'shico', 'aria-hidden': 'true', text: sec.icon }),
+        el('span', { class: 'shmid' }, el('span', { class: 'shtitle', text: sec.title }), el('span', { class: 'shhint' + (sm.can ? ' can' : ''), text: sm.hint })),
+        el('span', { class: 'pill' + (sm.done ? ' full' : ''), 'aria-label': sec.upg ? `Úrovně ${sm.have} z ${sm.total}` : `Vlastníš ${sm.have} z ${sm.total}` }, `${sm.have}/${sm.total}`),
+        el('span', { class: 'shchev', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' }));
+      main.append(el('section', { class: 'shsec' + (open ? ' open' : '') }, el('h2', { class: 'shh' }, head), body));
+    }
+    if (shopFocus) {
+      const t = main.querySelector(`[data-k="${shopFocus}"]`); shopFocus = null;
+      if (t) setTimeout(() => { if (t.isConnected) t.focus({ preventScroll: true }); }, 0);
+    }
   };
 
   /* ---------- Profil a statistiky ---------- */
@@ -216,6 +398,16 @@
     const select = (key, label, opts, hint) => el('label', { class: 'row' },
       el('div', { class: 'rmid' }, el('strong', { text: label }), hint ? el('span', { class: 'muted', text: hint }) : null),
       el('select', { onchange: e => { S.settings[key] = e.target.value; H.save(); applyTheme(); } }, opts.map(([v, t]) => el('option', { value: v, selected: S.settings[key] === v, text: t }))));
+    /* výběr stylu: dlaždice s malým náhledem, volba platí hned */
+    const stylePick = (key, label, opts) => {
+      const grp = el('div', { class: 'stpick', role: 'radiogroup', 'aria-label': label, style: `--pa:${H.skin('theme').sw}` }, opts.map(([v, t]) =>
+        el('button', { class: 'stp', role: 'radio', 'aria-checked': String(S.settings[key] === v), 'data-pv': v === 'same' ? null : v, onclick: e => {
+          S.settings[key] = v; H.save(); H.sfx('tap'); applyTheme();
+          for (const b of grp.children) b.setAttribute('aria-checked', String(b === e.currentTarget));
+        } }, el('span', { class: 'stp-m' + (v === 'same' ? ' same' : ''), 'aria-hidden': 'true' }, v === 'same' ? '=' : [el('i'), el('i'), el('i'), el('i')]), el('span', { class: 'stp-n', text: t }))));
+      return grp;
+    };
+    const styles = H.STYLES.map(s => [s.id, s.name]);
     const file = el('input', { type: 'file', accept: 'application/json,.json', class: 'sr', 'aria-label': 'Soubor se zálohou', onchange: e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; } });
     main.append(el('h1', { text: 'Nastavení' }),
       el('h2', { text: 'Hra' }), el('div', { class: 'list' },
@@ -223,6 +415,9 @@
         select('motion', 'Animace', [['auto', 'Podle systému'], ['on', 'Zapnuté'], ['off', 'Vypnuté']], 'Konfety, otřesy a přechody.')),
       el('h2', { text: 'Vzhled' }), el('div', { class: 'list' },
         select('theme', 'Režim', [['system', 'Podle systému'], ['light', 'Světlý'], ['dark', 'Tmavý']], 'Barvu motivu měníš v Obchodě.')),
+      el('h3', { text: 'Styl aplikace' }), stylePick('style', 'Styl aplikace', styles),
+      el('h3', { text: 'Styl ve hrách' }), stylePick('gstyle', 'Styl ve hrách', [['same', 'Jako aplikace'], ...styles]),
+      el('p', { class: 'muted stnote', text: 'Styl mění tvar: okraje, stíny, zaoblení a rozložení. Barvy dodává motiv z Obchodu, jen Černobílý je vždy černobílý a bez efektů.' }),
       el('h2', { text: 'Data' }), el('div', { class: 'list' },
         el('div', { class: 'row' }, el('div', { class: 'rmid' }, el('strong', { text: 'Záloha' }), el('span', { class: 'muted', text: 'Postup je uložený jen v tomhle telefonu. Zálohuj před výměnou telefonu.' })),
           el('div', { class: 'rbtns' }, el('button', { class: 'btn small', text: 'Exportovat', onclick: exportData }), el('button', { class: 'btn small', text: 'Importovat', onclick: () => file.click() }), file)),
@@ -255,7 +450,7 @@
     VIEWS[view][2](main);
   };
   H.rerender = () => render();
-  const go = v => { if (cur) { if (cur.inst) cur.inst.destroy(); cur = null; } closeMenu(); view = v; render(); $('#view').scrollTop = 0; };
+  const go = v => { if (cur) { if (cur.inst) cur.inst.destroy(); cur = null; } closeMenu(); if (v !== view) editOrder = false; view = v; render(); $('#view').scrollTop = 0; };
 
   /* ---------- Hra: celá obrazovka patří hře, nastavení je v rychlém menu ---------- */
   const variantOpen = g => !!g.variant && H.gameLevel(H.gstat(g.id).xp).level >= g.variant.level;

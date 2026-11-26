@@ -149,10 +149,15 @@
     active: { theme: 'neon', bg: 'auto', win: 'konfety', pieces: 'klasik', car: 'cervene', cards: 'recko' },
     upg: { undo: 0, shield: 0, magnet: 0, detector: 0, streakCap: 0 },
     streak: 0, bestWin: 0,
-    games: {}, prefs: {}, saves: {}, badges: {},
+    games: {}, prefs: {}, saves: {}, badges: {}, order: [],
     daily: { date: '', quests: [] }, questsDone: 0, seenHelp: {},
-    settings: { sound: true, vib: true, motion: 'auto', theme: 'system' }
+    settings: { sound: true, vib: true, motion: 'auto', theme: 'system', style: 'default', gstyle: 'same' }
   });
+  /* styly vzhledu (zdarma, Nastavení → Vzhled); gstyle 'same' = ve hrách stejný styl jako v appce */
+  H.STYLES = [
+    { id: 'default', name: 'Výchozí' }, { id: 'mono', name: 'Černobílý' }, { id: 'modern', name: 'Moderní' },
+    { id: 'glass', name: 'Glassmorfismus' }, { id: 'brutal', name: 'Neobrutalismus' }, { id: 'neu', name: 'Neumorfismus' }, { id: 'bento', name: 'Bento grid' }
+  ];
   H.validate = d => d && typeof d === 'object' && d.schema === 1 && typeof d.xp === 'number' && typeof d.coins === 'number';
   H.merge = d => {
     const base = defaults();
@@ -173,6 +178,9 @@
     for (const k of Object.keys(s.upg)) if (!H.UPGRADES.some(u => u.id === k)) delete s.upg[k];
     for (const k of Object.keys(s.badges)) if (!H.BADGES.some(b => b.id === k)) delete s.badges[k];
     if (!s.owned.cards.includes('recko')) { s.owned.cards.unshift('recko'); if (s.active.cards === 'zvirata') s.active.cards = 'recko'; }
+    const okStyle = v => H.STYLES.some(x => x.id === v);
+    if (!okStyle(s.settings.style)) s.settings.style = 'default';
+    if (s.settings.gstyle !== 'same' && !okStyle(s.settings.gstyle)) s.settings.gstyle = 'same';
   };
   H.load = () => {
     try {

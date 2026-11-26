@@ -19,7 +19,7 @@
       { id: 'skenovani', level: 'Základy', title: 'Skenování a skrytá jednička', blocks: [
         { p: 'Každý řádek, sloupec i čtverec musí obsahovat každou číslici právě jednou. Skoro celé luštění stojí na jediné otázce: kam ještě může tahle číslice přijít?' },
         { p: 'Co která obtížnost v Herně vyžaduje:' },
-        { list: ['**Lehké** – stačí jedničky (nahá a skrytá).', '**Střední** – navíc zamčení kandidáti a dvojice.', '**Těžké** – navíc trojice a X-Wing.', '**Ďábelské** – i to, co je nad tím: Swordfish, XY-Wing a další řetězce.'] },
+        { list: ['**Lehké** – stačí jedničky (nahá a skrytá).', '**Střední** – navíc zamčení kandidáti a dvojice.', '**Těžké** – navíc trojice a X-Wing.', '**Ďábelské** – i to, co je nad tím: Swordfish, XY-Wing a další řetězce.', 'Mřížka **4×4** je výjimka: tam stačí jedničky vždycky a obtížnost mění jen počet zadaných čísel.'] },
         { p: '**Skenování** (křížové vyškrtávání): vyber číslici, třeba 5, a najdi v mřížce všechny pětky. Každá pětka zakáže svůj řádek, sloupec i čtverec. Pak hledej čtverec, kde pro pětku zbylo jediné volné políčko. To je **skrytá jednička**: políčko by snad uneslo i jiná čísla, ale pětka nemá kam jinam.' },
         { diagram: { kind: 'sudoku', rows: ['.5....2..', '7...5....', '..1...358'], mark: [[0, 1, 'a'], [1, 4, 'a'], [0, 7, 'soft'], [0, 8, 'soft'], [1, 6, 'soft'], [1, 7, 'soft'], [1, 8, 'soft'], [2, 7, 'ok']],
           caption: 'Pětky v 1. a 2. řádku vylučují tyto řádky v pravém čtverci. Ve 3. řádku jsou dvě políčka čtverce obsazená, takže pětka patří do zeleného.' } },
@@ -55,12 +55,17 @@
           caption: 'Jednička a šestka jsou v tomhle řádku jen v modrých políčkách. Ostatní kandidáty z nich škrtni.' } },
         { tip: 'Nahou dvojici najdeš očima, skrytou počítáním: u každé číslice si v jednotce řekni, kolikrát se v poznámkách objevuje. Dvě číslice, které jsou tam dvakrát a ve stejných políčkách, tvoří dvojici.' }
       ] },
-      { id: 's16', level: 'Pokročilé', title: 'Velké sudoku 16×16', blocks: [
-        { p: 'Ve velkém sudoku je šestnáct symbolů: číslice 0–9 a písmena A–F. Každý řádek, sloupec a čtverec 4×4 musí obsahovat každý symbol právě jednou. Pravidla i techniky jsou stejné, jen je všeho víc.' },
-        { diagram: { kind: 'sudoku', size: 16, rows: ['.A..5...........', '......A....C....', '..0......A......', '8...........3FA7'], mark: [[0, 1, 'a'], [1, 6, 'a'], [2, 9, 'a'], [3, 14, 'ok']],
-          caption: 'Symbol A je v prvních třech řádcích pásu, takže v pravém čtverci mu zbývá jen 4. řádek. Tam jsou tři políčka obsazená a A patří do zeleného.' } },
-        { list: ['**Skenuj po symbolech, ne po políčkách.** Šestnáct možností v jednom políčku se z hlavy počítá špatně, kdežto jeden symbol v pásu čtyř čtverců najdeš rychle.', '**Pás má čtyři čtverce.** Když je symbol ve třech z nich, čtvrtý čtverec pro něj má jediný řádek – přesně jako na obrázku.', '**Poznámky piš až později.** Nejdřív vyplň všechny skryté jedničky, které jdou vidět; poznámek by na začátku bylo příliš mnoho.', '**Rozděl si symboly na dvě poloviny**, 0–7 a 8–F. Při kontrole řádku počítej každou polovinu zvlášť, je to rychlejší a spolehlivější.', '**Zamčení kandidáti a dvojice** fungují úplně stejně jako v malé mřížce. Hledej je, jakmile se poznámky začnou zužovat.'] },
-        { tip: 'Pracuj po pásech: dotáhni jeden pás čtyř čtverců, co nejdál to jde, a teprve pak přejdi k dalšímu. Ve velké mřížce se jinak snadno ztratíš.' }
+      { id: 's16', level: 'Pokročilé', title: 'Malé 4×4 a velké 16×16', blocks: [
+        { p: 'Herna má sudoku ve třech velikostech a ve všech jsou jen čísla. **4×4** se čtverci 2×2 a čísly 1 až 4 je na zahřátí a na vysvětlení pravidel: vyřeší se vždycky jen jedničkami, obtížnost v ní mění jen počet zadaných čísel. **16×16** se čtverci 4×4 a čísly 1 až 16 je opak: pravidla i techniky jsou stejné jako v klasice, jen je všeho víc.' },
+        { diagram: { kind: 'sudoku', size: 16, rows: [
+          ['.', '11', '.', '.', '6', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'],
+          ['.', '.', '.', '.', '.', '.', '11', '.', '.', '.', '.', '13', '.', '.', '.', '.'],
+          ['.', '.', '1', '.', '.', '.', '.', '.', '.', '11', '.', '.', '.', '.', '.', '.'],
+          ['9', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '4', '16', '11', '8']],
+          mark: [[0, 1, 'a'], [1, 6, 'a'], [2, 9, 'a'], [3, 14, 'ok']],
+          caption: 'Jedenáctka je v prvních třech řádcích pásu, takže v pravém čtverci jí zbývá jen 4. řádek. Tam jsou tři políčka obsazená a 11 patří do zeleného.' } },
+        { list: ['**Skenuj po číslech, ne po políčkách.** Šestnáct možností v jednom políčku se z hlavy počítá špatně, kdežto jedno číslo v pásu čtyř čtverců najdeš rychle.', '**Pás má čtyři čtverce.** Když je číslo ve třech z nich, čtvrtý čtverec pro něj má jediný řádek – přesně jako na obrázku.', '**Čti čísla celá.** Jednička, jedenáctka a šestnáctka se při rychlém pohledu pletou. Než číslo vyškrtneš, podívej se, jestli je jedno-, nebo dvoumístné.', '**Poznámky piš až později.** Nejdřív vyplň všechny skryté jedničky, které jdou vidět; poznámek by na začátku bylo příliš mnoho. Poznámky vybraného políčka se vypíšou i pod mřížkou.', '**Rozděl si čísla na dvě poloviny**, 1 až 8 a 9 až 16. Při kontrole řádku počítej každou polovinu zvlášť, je to rychlejší a spolehlivější.', '**Zamčení kandidáti a dvojice** fungují úplně stejně jako v malé mřížce. Hledej je, jakmile se poznámky začnou zužovat.'] },
+        { tip: 'Pracuj po pásech: dotáhni jeden pás čtyř čtverců, co nejdál to jde, a teprve pak přejdi k dalšímu. Ve velké mřížce se jinak snadno ztratíš. Na klávesnici napiš 1 a hned druhou číslici pro 10 až 16, nebo Enter pro samotnou jedničku.' }
       ] },
       { id: 'trojice', level: 'Mistrovské', title: 'Nahé a skryté trojice', blocks: [
         { p: '**Nahá trojice** jsou tři políčka jedné jednotky, jejichž poznámky dohromady obsahují jen tři číslice. Každé políčko nemusí mít všechny tři – stačí kombinace jako {3, 5}, {5, 8} a {3, 8}. Ty tři číslice pak z ostatních políček jednotky zmizí.' },

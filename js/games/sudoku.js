@@ -1,5 +1,5 @@
 'use strict';
-/* Sudoku 9×9 a 16×16: generátor s jediným řešením, obtížnost podle potřebných technik */
+/* Sudoku 4×4, 9×9 a 16×16 (jen čísla): generátor s jediným řešením, obtížnost podle potřebných technik */
 (function () {
   /* ---------- Výpočetní jádro (bez DOM, testovatelné v node) ---------- */
   const E = (() => {
@@ -22,7 +22,7 @@
     const GEO = {};
     const geo = N => {
       if (GEO[N]) return GEO[N];
-      const b = N === 16 ? 4 : 3, NN = N * N, FULL = (1 << N) - 1;
+      const b = Math.round(Math.sqrt(N)), NN = N * N, FULL = (1 << N) - 1;
       const R = new Int8Array(NN), C = new Int8Array(NN), B = new Int8Array(NN);
       for (let i = 0; i < NN; i++) { R[i] = (i / N) | 0; C[i] = i % N; B[i] = ((R[i] / b) | 0) * b + ((C[i] / b) | 0); }
       const units = [];
@@ -276,12 +276,14 @@
       return { puz, n, lvl: r.lvl, tech: r.tech, hard: r.hard };
     }
     /* [nejvyšší povolená úroveň technik, min. čísel, max. čísel, požadovaná úroveň]; null = minimální zadání s kontrolou jednoznačnosti */
+    /* 4×4: každé zadání se vyřeší jednoduchými kroky, obtížnost tu určuje jen počet zadaných čísel */
     const CFG = {
+      4: [[0, 10, 10, 0], [0, 8, 8, 0], [0, 6, 6, 0], [0, 4, 5, 0]],
       9: [[0, 36, 40, 0], [1, 29, 34, 1], [2, 24, 31, 2], null],
       16: [[0, 140, 148, 0], [1, 124, 132, 1], [2, 110, 118, 2], [3, 98, 106, 3]]
     };
     /* časový strop (ms); běžně je zadání hotové mnohem dřív */
-    const BUDGET = { 9: [900, 900, 1800, 2800], 16: [2600, 2600, 2600, 2600] };
+    const BUDGET = { 4: [300, 300, 300, 300], 9: [900, 900, 1800, 2800], 16: [2600, 2600, 2600, 2600] };
     /* generátor po kouscích (yield = místo pro přerušení kvůli plynulosti UI) */
     function* gen(N, diff, budget) {
       const g = geo(N), t0 = now(), lim = budget || BUDGET[N][diff], cfg = CFG[N][diff];
@@ -305,9 +307,15 @@
 
   /* ---------- Hra ---------- */
   const { el } = H;
-  const XP = { 9: [40, 70, 110, 160], 16: [150, 220, 300, 420] };
+  /* režim = počet čísel; 9×9 zůstává první kvůli dosavadním rekordům */
+  const SIZE = { '9': 9, '4': 4, '16': 16 };
+  const XP = { 4: [10, 14, 18, 22], 9: [40, 70, 110, 160], 16: [150, 220, 300, 420] };
   const DIFFN = ['Lehké', 'Střední', 'Těžké', 'Ďábelské'];
-  const sym = (N, v) => N === 16 ? (v - 1).toString(16).toUpperCase() : String(v);
+  const ABOUT = {
+    '9': 'Mřížka 9×9 se čtverci 3×3, čísla 1 až 9. Klasika.',
+    '4': 'Mřížka 4×4 se čtverci 2×2, čísla 1 až 4. Na zahřátí: každé zadání se vyřeší jednoduchými kroky, obtížnost tu určuje jen počet zadaných čísel (10, 8, 6, nebo co nejméně).',
+    '16': 'Mřížka 16×16 se čtverci 4×4, čísla 1 až 16. Velký hlavolam na delší chvíli, pole na telefonu posouváš tažením prstu.'
+  };
   /* spustí generátor po časových dílcích, aby appka nezamrzla */
   const runGen = (N, diff, done) => {
     const it = E.gen(N, diff); let tm = 0, dead = false;
@@ -320,42 +328,60 @@
     tm = setTimeout(step, 40);
     return () => { dead = true; clearTimeout(tm); };
   };
+  /* uložená hra: přijme jen úplná a konzistentní data (staré 9×9 bez velikosti i 16×16, kde se znaky 0–F ukládaly jako čísla 1–16) */
+  const validSave = sv => {
+    if (!sv || !Array.isArray(sv.cur) || !Array.isArray(sv.puz) || !Array.isArray(sv.sol)) return 0;
+    const N = Math.round(Math.sqrt(sv.cur.length));
+    if (!(N in XP) || sv.cur.length !== N * N || sv.puz.length !== N * N || sv.sol.length !== N * N) return 0;
+    const okv = (v, z) => Number.isInteger(v) && v >= (z ? 0 : 1) && v <= N;
+    return sv.sol.every(v => okv(v)) && sv.puz.every(v => okv(v, 1)) && sv.cur.every(v => okv(v, 1)) ? N : 0;
+  };
+  /* poznámky = bitová maska (bit n−1 = číslo n) */
+  const noteHas = (m, n) => (m >> (n - 1)) & 1;
 
   H.register({
     id: 'sudoku', name: 'Sudoku', icon: '🔢', grad: ['#0e7490', '#155e75'], saveable: true, winLose: true, bestFmt: 'time',
-    desc: 'Čísla 1–9 (nebo 0–F) do řádků a čtverců',
-    modes: [{ id: '9', name: '9×9' }, { id: '16', name: '16×16' }],
+    desc: 'Čísla do řádků, sloupců a čtverců: 4×4, 9×9 i 16×16',
+    modes: [{ id: '9', name: '9 čísel · klasika' }, { id: '4', name: '4 čísla · mini' }, { id: '16', name: '16 čísel · velké' }],
     diffNames: DIFFN,
+    menuExtra: sel => [el('p', { class: 'muted sdk-about', text: ABOUT[sel.mode] || ABOUT['9'] })],
     variant: { name: 'Tři životy', desc: 'Třetí chybně zapsané číslo znamená konec. Za výhru je o polovinu víc odměn.', level: 2 },
     quest: { n: 1, text: 'Vyřeš Sudoku', kind: 'win' },
-    help: 'V každém řádku, sloupci i čtverci musí být každé číslo právě jednou: v 9×9 čísla 1 až 9, v 16×16 znaky 0 až 9 a A až F (čtverce 4×4). Ťukni na políčko a pak na číslo dole. V režimu Poznámky si do políčka píšeš malé tipy. Obtížnost určují techniky, které zadání vyžaduje: Lehké stačí jediný kandidát a jediné místo, Střední potřebuje zamčené kandidáty nebo dvojice, Těžké trojice nebo X-Wing a Ďábelské ještě víc. Velké pole 16×16 na telefonu posouváš tažením prstu.',
+    help: 'V každém řádku, sloupci i čtverci musí být každé číslo právě jednou. Velikost vybereš v Režimu: 4 čísla (čtverce 2×2), 9 čísel (klasika se čtverci 3×3), nebo 16 čísel (čtverce 4×4, čísla 1 až 16). Ťukni na políčko a pak na číslo dole. V režimu Poznámky si do políčka píšeš malé tipy. Obtížnost určují techniky, které zadání vyžaduje: Lehké stačí jediný kandidát a jediné místo, Střední potřebuje zamčené kandidáty nebo dvojice, Těžké trojice nebo X-Wing a Ďábelské ještě víc. Mřížka 4×4 je na zahřátí, obtížnost v ní mění jen počet zadaných čísel. Velké pole 16×16 posouváš tažením prstu a pod ním vidíš, kde jsi. Na klávesnici píšeš čísla rovnou; v 16×16 hra po jedničce chvilku čeká na druhou číslici (10 až 16), Enter zapíše hned. Backspace nebo Delete maže, šipky posouvají výběr.',
     engine: E,
     start(root, ctx) {
-      const sv = ctx.saved && Array.isArray(ctx.saved.cur) ? ctx.saved : null;
-      const N = sv ? (sv.size || (sv.cur.length === 256 ? 16 : 9)) : (ctx.mode === '16' ? 16 : 9);
-      const g = E.geo(N), NN = g.NN, b = g.b, all = [...Array(N).keys()].map(k => k + 1);
-      let st = null, sel = -1, notes = false, over = false, tick = 0, cancel = null, gone = false;
+      const svN = validSave(ctx.saved), sv = svN ? ctx.saved : null;
+      const N = sv ? svN : (SIZE[ctx.mode] || 9);
+      const g = E.geo(N), NN = g.NN, b = g.b, big = N > 9, all = [...Array(N).keys()].map(k => k + 1);
+      let st = null, sel = -1, notes = false, over = false, tick = 0, cancel = null, gone = false, buf = 0, bufTm = 0;
       const info = el('p', { class: 'g-score', role: 'status' });
       const status = el('p', { class: 'g-status sdk-st' });
+      const where = el('p', { class: 'sdk-where', 'aria-live': 'polite' });
       const head = () => { info.textContent = `⏱ ${H.fmtTime(st.time)}   Chyby ${st.miss}${ctx.variant ? '/3' : ''}`; };
-      let cells = [], nums = [], noteBtn = null, keys = [];
+      let cells = [], nums = [], noteBtn = null, keys = [], labels = [];
+      const pick = i => { flush(); sel = i; paint(); };
       const build = () => {
         sel = st.cur.findIndex(v => !v);
-        const board = el('div', { class: 'board sdk' + (N === 16 ? ' s16' : ''), role: 'grid', 'aria-label': `Sudoku ${N}×${N}` });
-        cells = st.cur.map((_, i) => el('button', { class: 'cell', onclick: () => { sel = i; paint(); } }));
-        keys = cells.map(() => '');
+        const board = el('div', { class: `board sdk s${N}`, role: 'grid', 'aria-label': `Sudoku ${N}×${N}` });
+        cells = st.cur.map((_, i) => el('button', { class: 'cell', onclick: () => pick(i) }));
+        keys = cells.map(() => ''); labels = cells.map(() => '');
         board.append(...cells);
-        const pad = el('div', { class: 'numpad' + (N === 16 ? ' n16' : '') });
-        nums = all.map(n => el('button', { class: 'btn num', text: sym(N, n), 'aria-label': (N === 16 ? 'Znak ' : 'Číslo ') + sym(N, n), onclick: () => put(n) }));
+        const pad = el('div', { class: `numpad n${N}` });
+        nums = all.map(n => el('button', { class: 'btn num', text: String(n), 'aria-label': 'Číslo ' + n, onclick: () => { flush(); put(n); } }));
         noteBtn = el('button', { class: 'btn', 'aria-pressed': 'false', onclick: () => { notes = !notes; paint(); } });
         pad.append(...nums);
         root.textContent = '';
-        root.append(info, status, N === 16 ? H.pan(board) : board, pad, el('div', { class: 'g-actions' }, noteBtn, el('button', { class: 'btn ghost', text: '⌫ Smazat', onclick: () => put(0) })));
+        let view = board;
+        if (big) { view = H.pan(board); view.classList.add('sdk-pan'); }
+        root.append(info, status, view);
+        if (big) root.append(where);
+        root.append(pad, el('div', { class: 'g-actions' }, noteBtn, el('button', { class: 'btn ghost', text: '⌫ Smazat', onclick: () => { flush(true); put(0); } })));
         status.textContent = '';
         if (sv && st.time) clock();
         paint();
       };
-      const noteNode = m => el('span', { class: 'notes', 'aria-hidden': 'true' }, all.map(n => el('i', { text: (m >> (n - 1)) & 1 ? sym(N, n) : '' })));
+      const noteNode = m => el('span', { class: 'notes', 'aria-hidden': 'true' }, all.map(n => el('i', { text: noteHas(m, n) ? String(n) : '' })));
+      const noteList = m => all.filter(n => noteHas(m, n));
       const paint = () => {
         if (!st) return;
         const sv2 = sel >= 0 ? st.cur[sel] : 0, sr = g.R[sel], sc = g.C[sel], sbx = g.B[sel];
@@ -368,16 +394,19 @@
           const key = v ? 'v' + v : 'n' + st.notes[i];
           if (keys[i] !== key) {
             keys[i] = key; c.textContent = '';
-            if (v) c.textContent = sym(N, v);
+            if (v) c.textContent = String(v);
             else if (st.notes[i]) c.append(noteNode(st.notes[i]));
           }
-          c.setAttribute('aria-label', `Řádek ${r + 1}, sloupec ${k + 1}: ` + (v ? (given ? 'zadané ' : '') + sym(N, v) + (st.bad[i] ? ', chybně' : '') : 'prázdné'));
+          const lab = `Řádek ${r + 1}, sloupec ${k + 1}: ` + (v ? (given ? 'zadané ' : '') + v + (st.bad[i] ? ', chybně' : '') : st.notes[i] ? 'poznámky ' + noteList(st.notes[i]).join(', ') : 'prázdné');
+          if (labels[i] !== lab) { labels[i] = lab; c.setAttribute('aria-label', lab); }
         });
         const cnt = new Array(N + 1).fill(0);
         st.cur.forEach((v, i) => { if (v && !st.bad[i]) cnt[v]++; });
         nums.forEach((bt, n) => { bt.disabled = over || cnt[n + 1] >= N; });
         noteBtn.textContent = notes ? '✏️ Poznámky: ZAP' : '✏️ Poznámky: VYP';
         noteBtn.setAttribute('aria-pressed', String(notes)); noteBtn.classList.toggle('alt', notes);
+        if (big) where.textContent = sel < 0 ? '' : `Řádek ${g.R[sel] + 1}, sloupec ${g.C[sel] + 1}` + (buf ? ` · píšeš ${buf}…` : '') +
+          (!st.cur[sel] && st.notes[sel] ? ' · poznámky ' + noteList(st.notes[sel]).join(', ') : '');
         head();
       };
       const gradeText = () => {
@@ -386,7 +415,7 @@
         return t ? `Nejtěžší potřebná technika: ${t[0]} (${DIFFN[Math.min(3, gr.lvl)]}).` : 'Zadání šlo vyřešit jen jednoduchými kroky.';
       };
       const finish = res => {
-        over = true; clearInterval(tick); paint();
+        over = true; clearInterval(tick); clearTimeout(bufTm); buf = 0; paint();
         if (res === 'win') { const t = gradeText(); status.textContent = t; if (t && H.toast) H.toast(t); }
         ctx.end({ result: res, xp: res === 'win' ? XP[N][ctx.diff] : 8, score: res === 'win' ? st.time : null, lower: true });
       };
@@ -405,36 +434,53 @@
         ctx.save(st); paint();
       }
       function clock() { if (tick) return; tick = setInterval(() => { if (document.hidden || over || ctx.paused) return; st.time++; if (st.time % 5 === 0) ctx.save(st); head(); }, 1000); }
+      /* klávesnice v 16×16: číslice 2–9 hned, po jedničce se chvilku čeká na druhou číslici (10–16); Enter zapíše hned */
+      function flush(drop) {
+        clearTimeout(bufTm); bufTm = 0;
+        const d = buf; buf = 0;
+        if (d && !drop) put(d); else if (d) paint();
+      }
+      const digit = d => {
+        if (!big) { if (d >= 1 && d <= N) put(d); return; }
+        if (buf) {
+          const two = buf * 10 + d;
+          if (two <= N) { clearTimeout(bufTm); bufTm = 0; buf = 0; return put(two); }
+          flush();
+        }
+        if (d === 0) return;
+        if (d * 10 <= N) { buf = d; bufTm = setTimeout(() => flush(), 1100); paint(); return; }
+        put(d);
+      };
       const key = e => {
         if (!st || over || document.querySelector('.modal') || e.ctrlKey || e.metaKey || e.altKey) return;
         const k = e.key;
-        if (k === 'Backspace' || k === 'Delete' || (N === 9 && k === '0')) { e.preventDefault(); return put(0); }
-        if (k.length === 1) {
-          const d = N === 16 ? parseInt(k, 16) + 1 : /[1-9]/.test(k) ? +k : NaN;
-          if (d >= 1 && d <= N) { e.preventDefault(); return put(d); }
-        }
+        if (k === 'Backspace' || k === 'Delete' || (N === 9 && k === '0')) { e.preventDefault(); flush(true); return put(0); }
+        if (k === 'Enter' && buf) { e.preventDefault(); return flush(); }
+        if (k.length === 1 && k >= '0' && k <= '9') { e.preventDefault(); return digit(+k); }
         const dd = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -N, ArrowDown: N }[k]; if (!dd || sel < 0) return;
         const nx = sel + dd; if (nx < 0 || nx >= NN || (Math.abs(dd) === 1 && g.R[nx] !== g.R[sel])) return;
-        sel = nx; e.preventDefault(); paint();
-        if (N === 16 && cells[sel].scrollIntoView) cells[sel].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        e.preventDefault(); pick(nx);
+        if (big && cells[sel].scrollIntoView) cells[sel].scrollIntoView({ block: 'nearest', inline: 'nearest' });
       };
       window.addEventListener('keydown', key);
       if (sv) {
         st = sv; st.size = N;
-        if (!st.notes || st.notes.length !== NN) st.notes = Array(NN).fill(0);
-        if (!st.bad || st.bad.length !== NN) st.bad = Array(NN).fill(0);
+        if (!Array.isArray(st.notes) || st.notes.length !== NN) st.notes = Array(NN).fill(0);
+        if (!Array.isArray(st.bad) || st.bad.length !== NN) st.bad = Array(NN).fill(0);
+        st.time = st.time | 0; st.miss = st.miss | 0;
         build();
       } else {
         info.textContent = 'Připravuji zadání…';
-        status.textContent = N === 16 ? 'Skládám velké pole 16×16, chvilku strpení.' : ctx.diff === 3 ? 'Hledám opravdu ďábelské zadání, chvilku to trvá.' : '';
+        status.textContent = N === 16 ? 'Skládám velké pole 16×16, chvilku strpení.' : N === 9 && ctx.diff === 3 ? 'Hledám opravdu ďábelské zadání, chvilku to trvá.' : '';
         root.append(info, status, el('div', { class: 'sdk-wait', 'aria-hidden': 'true' }));
         cancel = runGen(N, ctx.diff, r => {
           cancel = null; if (gone) return;
           st = { size: N, puz: Array.from(r.puz), sol: Array.from(r.sol), cur: Array.from(r.puz), notes: Array(NN).fill(0), bad: Array(NN).fill(0), time: 0, miss: 0, grade: { lvl: r.lvl, tech: r.tech } };
           build(); ctx.save(st);
+          if (N !== 4 && Math.min(3, r.lvl) < ctx.diff) status.textContent = `Tak těžké zadání se teď nenašlo, tohle je ${DIFFN[Math.min(3, r.lvl)]}.`;
         });
       }
-      return { destroy() { gone = true; if (cancel) cancel(); clearInterval(tick); window.removeEventListener('keydown', key); over = true; } };
+      return { destroy() { gone = true; if (cancel) cancel(); clearInterval(tick); clearTimeout(bufTm); window.removeEventListener('keydown', key); over = true; } };
     }
   });
 })();
